@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
 import StarRating from '../components/StarRating';
 import EmojiPicker from '../components/EmojiPicker';
@@ -79,6 +79,16 @@ export default function RatingScreen({ route, navigation }: any) {
     }
 
     const points = calculatePoints();
+
+    // Prüfe ob Supabase konfiguriert ist
+    if (!isSupabaseConfigured) {
+      Alert.alert(
+        '⚠️ Supabase nicht konfiguriert',
+        'Die Bewertung kann nicht gespeichert werden. Bitte .env Datei ausfüllen und App neu starten.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     try {
       // Speichere Bewertung in Supabase

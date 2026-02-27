@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
 
 export default function NameInputScreen({ navigation }: any) {
@@ -14,6 +14,12 @@ export default function NameInputScreen({ navigation }: any) {
     
     if (!trimmedName) {
       setErrorMessage('Bitte gib deinen Namen ein');
+      return;
+    }
+
+    // Prüfe ob Supabase konfiguriert ist
+    if (!isSupabaseConfigured) {
+      setErrorMessage('⚠️ Supabase nicht konfiguriert. Bitte .env Datei ausfüllen und App neu starten.');
       return;
     }
 

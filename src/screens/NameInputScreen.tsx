@@ -1,28 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
 import { theme } from '../constants/theme';
 
 export default function NameInputScreen({ navigation }: any) {
   const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async () => {
     const trimmedName = name.trim();
     
     if (!trimmedName) {
-      Alert.alert('Fehler', 'Bitte gib deinen Namen ein');
+      setErrorMessage('Bitte gib deinen Namen ein');
       return;
     }
 
+    setIsLoading(true);
+    setErrorMessage('');
+
     try {
-      await AsyncStorage.setItem('userName', trimmedName);
+      // Prüfe ob Name in Supabase existiert (case-insensitive)
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('name')
+        .ilike('name', trimmedName)
+        .single();
+
+      if (error || !data) {
+        setErrorMessage('Name nicht bekannt. Bitte wende dich an den Admin.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Name gefunden - speichere in AsyncStorage
+      await AsyncStorage.setItem('userName', data.name);
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
       });
     } catch (error) {
-      console.error('Error saving name:', error);
-      Alert.alert('Fehler', 'Name konnte nicht gespeichert werden');
+      console.error('Error validating name:', error);
+      setErrorMessage('Verbindungsfehler. Bitte versuche es erneut.');
+      setIsLoading(false);
     }
   };
 
@@ -41,25 +62,45 @@ export default function NameInputScreen({ navigation }: any) {
         {/* Input */}
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              errorMessage && styles.inputError,
+            ]}
             placeholder="Dein Name, z. B. Max Mustermann"
             placeholderTextColor={theme.colors.gray}
             value={name}
-            onChangeText={setName}
+            onChangeText={(text) => {
+              setName(text);
+              setErrorMessage('');
+            }}
             autoFocus={true}
             autoCapitalize="words"
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
+            editable={!isLoading}
           />
+          {errorMessage ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Button */}
         <TouchableOpacity 
-          style={styles.button}
+          style={[
+            styles.button,
+            isLoading && styles.buttonDisabled,
+          ]}
           onPress={handleSubmit}
           activeOpacity={0.8}
+          disabled={isLoading}
         >
-          <Text style={styles.buttonText}>Los geht's!</Text>
+          {isLoading ? (
+            <ActivityIndicator color={theme.colors.white} />
+          ) : (
+            <Text style={styles.buttonText}>Los geht's!</Text>
+          )}
         </TouchableOpacity>
 
         {/* Hint */}
@@ -109,6 +150,22 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
+  inputError: {
+    borderColor: '#e53e3e',
+  },
+  errorBox: {
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
+    borderColor: '#e53e3e',
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#e53e3e',
+    textAlign: 'center',
+  },
   button: {
     backgroundColor: '#48bb78',
     borderRadius: theme.borderRadius.md,
@@ -120,6 +177,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  buttonDisabled: {
+    backgroundColor: theme.colors.gray,
+    opacity: 0.6,
   },
   buttonText: {
     fontSize: 18,

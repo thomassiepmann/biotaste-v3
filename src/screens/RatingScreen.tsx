@@ -13,6 +13,27 @@ const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Kräuter': '🌿',
 };
 
+const EMOJI_TAGS = {
+  geschmack: [
+    { id: 'suess', label: '🍬 Süß' },
+    { id: 'sauer', label: '🍋 Sauer' },
+    { id: 'salzig', label: '🧂 Salzig' },
+    { id: 'waessrig', label: '💧 Wässrig' },
+    { id: 'aromatisch', label: '🌿 Aromatisch' },
+  ],
+  zustand: [
+    { id: 'frisch', label: '✨ Frisch' },
+    { id: 'ueberreif', label: '⚠️ Überreif' },
+    { id: 'noch_nicht_reif', label: '🌱 Noch nicht reif' },
+    { id: 'matschig', label: '🤢 Matschig' },
+  ],
+  besonders: [
+    { id: 'top_qualitaet', label: '🏆 Top Qualität' },
+    { id: 'enttaeuschend', label: '👎 Enttäuschend' },
+    { id: 'schaedling', label: '🐛 Schädling' },
+  ],
+};
+
 export default function RatingScreen({ route, navigation }: any) {
   const { charge, product }: { charge: Charge; product: Product } = route.params;
   const [userName, setUserName] = useState<string | null>(null);
@@ -21,18 +42,32 @@ export default function RatingScreen({ route, navigation }: any) {
   const [tasteEmoji, setTasteEmoji] = useState('');
   const [opticEmoji, setOpticEmoji] = useState('');
   const [textureEmoji, setTextureEmoji] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
-  const [hasPhoto, setHasPhoto] = useState(false);
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('userName').then(name => setUserName(name));
   }, []);
 
+  const toggleTag = (tagId: string) => {
+    if (selectedTags.includes(tagId)) {
+      setSelectedTags(selectedTags.filter(t => t !== tagId));
+    } else {
+      if (selectedTags.length < 5) {
+        setSelectedTags([...selectedTags, tagId]);
+      }
+    }
+  };
+
   const calculatePoints = () => {
-    let points = 15; // Base points
+    let points = 20; // Base points
+    // Smileys ausgefüllt
+    if (tasteEmoji && opticEmoji && textureEmoji) points += 5;
+    // Tags gewählt
+    if (selectedTags.length > 0) points += 5;
+    // Kommentar geschrieben
     if (comment.trim().length > 0) points += 5;
-    if (hasPhoto) points += 10;
     return points;
   };
 
@@ -105,35 +140,91 @@ export default function RatingScreen({ route, navigation }: any) {
           />
         </View>
 
+        {/* Emoji Tags */}
+        <View style={styles.tagsSection}>
+          <Text style={styles.tagsSectionTitle}>Geschmack</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow}>
+            {EMOJI_TAGS.geschmack.map(tag => (
+              <TouchableOpacity
+                key={tag.id}
+                style={[
+                  styles.tagChip,
+                  selectedTags.includes(tag.id) && styles.tagChipSelected,
+                ]}
+                onPress={() => toggleTag(tag.id)}
+              >
+                <Text style={[
+                  styles.tagChipText,
+                  selectedTags.includes(tag.id) && styles.tagChipTextSelected,
+                ]}>
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.tagsSectionTitle}>Zustand</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow}>
+            {EMOJI_TAGS.zustand.map(tag => (
+              <TouchableOpacity
+                key={tag.id}
+                style={[
+                  styles.tagChip,
+                  selectedTags.includes(tag.id) && styles.tagChipSelected,
+                ]}
+                onPress={() => toggleTag(tag.id)}
+              >
+                <Text style={[
+                  styles.tagChipText,
+                  selectedTags.includes(tag.id) && styles.tagChipTextSelected,
+                ]}>
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.tagsSectionTitle}>Besonders</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow}>
+            {EMOJI_TAGS.besonders.map(tag => (
+              <TouchableOpacity
+                key={tag.id}
+                style={[
+                  styles.tagChip,
+                  selectedTags.includes(tag.id) && styles.tagChipSelected,
+                ]}
+                onPress={() => toggleTag(tag.id)}
+              >
+                <Text style={[
+                  styles.tagChipText,
+                  selectedTags.includes(tag.id) && styles.tagChipTextSelected,
+                ]}>
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Comment */}
         <View style={styles.commentSection}>
           <Text style={styles.sectionLabel}>Kurzer Kommentar (optional)</Text>
           <TextInput
             style={styles.commentInput}
-            placeholder="Was ist dir aufgefallen?"
+            placeholder="Kurzer Kommentar (optional)..."
             placeholderTextColor={theme.colors.gray}
             multiline
-            numberOfLines={3}
+            maxLength={150}
             value={comment}
             onChangeText={setComment}
           />
+          <Text style={styles.characterCount}>{comment.length}/150</Text>
         </View>
-
-        {/* Photo Button */}
-        <TouchableOpacity
-          style={styles.photoButton}
-          onPress={() => setHasPhoto(!hasPhoto)}
-        >
-          <Text style={styles.photoEmoji}>📷</Text>
-          <Text style={styles.photoText}>
-            {hasPhoto ? 'Foto hinzugefügt ✓' : 'Foto hinzufügen'}
-          </Text>
-        </TouchableOpacity>
 
         {/* Points Preview */}
         <View style={styles.pointsPreview}>
           <Text style={styles.pointsPreviewText}>
-            Du verdienst: +{calculatePoints()} Punkte
+            Du bekommst +{calculatePoints()} Punkte
           </Text>
         </View>
 
@@ -247,6 +338,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
+  tagsSection: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  tagsSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2f855a',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  tagsRow: {
+    marginBottom: 8,
+  },
+  tagChip: {
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: theme.colors.white,
+    borderWidth: 2,
+    borderColor: '#48bb78',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  tagChipSelected: {
+    backgroundColor: '#48bb78',
+    borderColor: '#48bb78',
+  },
+  tagChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#48bb78',
+  },
+  tagChipTextSelected: {
+    color: theme.colors.white,
+  },
   commentSection: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
@@ -254,32 +382,19 @@ const styles = StyleSheet.create({
   commentInput: {
     backgroundColor: theme.colors.grayLight,
     borderRadius: theme.borderRadius.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
     padding: theme.spacing.md,
     fontSize: 14,
     color: theme.colors.text,
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  photoButton: {
-    marginHorizontal: theme.spacing.lg,
-    marginVertical: theme.spacing.md,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: theme.colors.gray,
-    borderRadius: theme.borderRadius.sm,
-    padding: theme.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoEmoji: {
-    fontSize: 24,
-    marginRight: theme.spacing.sm,
-  },
-  photoText: {
-    fontSize: 16,
+  characterCount: {
+    fontSize: 12,
     color: theme.colors.gray,
-    fontWeight: '500',
+    textAlign: 'right',
+    marginTop: 4,
   },
   pointsPreview: {
     marginHorizontal: theme.spacing.lg,

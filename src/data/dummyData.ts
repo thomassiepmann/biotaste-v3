@@ -1,10 +1,10 @@
 import { User, Product, Charge, Reward } from '../types';
 
 export const DUMMY_USERS: User[] = [
-  { id: '1', name: 'Anna', pin: '1234', points: 340, streak_days: 5, last_rating_date: null, role: 'admin' },
-  { id: '2', name: 'Ben', pin: '2345', points: 125, streak_days: 3, last_rating_date: null, role: 'employee' },
-  { id: '3', name: 'Clara', pin: '3456', points: 80, streak_days: 1, last_rating_date: null, role: 'employee' },
-  { id: '4', name: 'David', pin: '4567', points: 210, streak_days: 7, last_rating_date: null, role: 'employee' },
+  { id: '1', name: 'Anna', pin: '0000', points: 340, streak_days: 5, last_rating_date: null, role: 'admin' },
+  { id: '2', name: 'Ben', pin: '0000', points: 125, streak_days: 3, last_rating_date: null, role: 'employee' },
+  { id: '3', name: 'Clara', pin: '0000', points: 80, streak_days: 1, last_rating_date: null, role: 'employee' },
+  { id: '4', name: 'David', pin: '0000', points: 210, streak_days: 7, last_rating_date: null, role: 'employee' },
 ];
 
 export const DUMMY_PRODUCTS: Product[] = [

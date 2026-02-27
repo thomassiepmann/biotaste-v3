@@ -1,25 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
 import { DUMMY_REWARDS } from '../data/dummyData';
-import { User, Reward } from '../types';
+import { Reward } from '../types';
 
-export default function RewardsScreen({ route }: any) {
-  const user: User = route.params?.user;
+export default function RewardsScreen() {
+  const [userName, setUserName] = useState<string | null>(null);
+  const mockPoints = 0; // Mock-Punkte für Demo-Zwecke
+
+  useEffect(() => {
+    AsyncStorage.getItem('userName').then(name => setUserName(name));
+  }, []);
 
   const getNextReward = (): Reward | null => {
-    const affordableRewards = DUMMY_REWARDS.filter(r => r.points_cost > user.points);
+    const affordableRewards = DUMMY_REWARDS.filter(r => r.points_cost > mockPoints);
     if (affordableRewards.length === 0) return null;
     return affordableRewards.reduce((min, r) => r.points_cost < min.points_cost ? r : min);
   };
 
   const nextReward = getNextReward();
   const progressPercentage = nextReward 
-    ? Math.min((user.points / nextReward.points_cost) * 100, 100)
+    ? Math.min((mockPoints / nextReward.points_cost) * 100, 100)
     : 100;
 
   const handleRedeem = (reward: Reward) => {
-    if (user.points >= reward.points_cost) {
+    if (mockPoints >= reward.points_cost) {
       alert(`🎉 Glückwunsch! Du hast "${reward.name}" eingelöst!`);
     }
   };
@@ -28,10 +34,10 @@ export default function RewardsScreen({ route }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Deine Belohnungen 🎁</Text>
+        <Text style={styles.headerTitle}>Hallo, {userName}! 🎁</Text>
         <View style={styles.pointsDisplay}>
           <Text style={styles.pointsEmoji}>🌱</Text>
-          <Text style={styles.pointsAmount}>{user?.points}</Text>
+          <Text style={styles.pointsAmount}>{mockPoints}</Text>
           <Text style={styles.pointsLabel}>Punkte</Text>
         </View>
 
@@ -51,21 +57,14 @@ export default function RewardsScreen({ route }: any) {
             </Text>
           </View>
         )}
-
-        {/* Streak Info */}
-        <View style={styles.streakInfo}>
-          <Text style={styles.streakText}>
-            🔥 {user?.streak_days} Tage Streak – weiter so!
-          </Text>
-        </View>
       </View>
 
       {/* Rewards List */}
       <ScrollView style={styles.content}>
         <View style={styles.rewardsGrid}>
           {DUMMY_REWARDS.map((reward) => {
-            const canAfford = user.points >= reward.points_cost;
-            const pointsNeeded = reward.points_cost - user.points;
+            const canAfford = mockPoints >= reward.points_cost;
+            const pointsNeeded = reward.points_cost - mockPoints;
 
             return (
               <View key={reward.id} style={styles.rewardCard}>

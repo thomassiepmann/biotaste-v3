@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../constants/theme';
 import StarRating from '../components/StarRating';
 import EmojiPicker from '../components/EmojiPicker';
 import PointsAnimation from '../components/PointsAnimation';
-import { User, Product, Charge } from '../types';
+import { Product, Charge } from '../types';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Obst': '🍎',
@@ -13,7 +14,8 @@ const CATEGORY_EMOJIS: { [key: string]: string } = {
 };
 
 export default function RatingScreen({ route, navigation }: any) {
-  const { charge, product, user }: { charge: Charge; product: Product; user: User } = route.params;
+  const { charge, product }: { charge: Charge; product: Product } = route.params;
+  const [userName, setUserName] = useState<string | null>(null);
 
   const [overallStars, setOverallStars] = useState(0);
   const [tasteEmoji, setTasteEmoji] = useState('');
@@ -22,6 +24,10 @@ export default function RatingScreen({ route, navigation }: any) {
   const [comment, setComment] = useState('');
   const [hasPhoto, setHasPhoto] = useState(false);
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('userName').then(name => setUserName(name));
+  }, []);
 
   const calculatePoints = () => {
     let points = 15; // Base points

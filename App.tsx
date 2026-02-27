@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
-import LoginScreen from './src/screens/LoginScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import LoadingScreen from './src/components/LoadingScreen';
+import NameInputScreen from './src/screens/NameInputScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import RatingScreen from './src/screens/RatingScreen';
 import RewardsScreen from './src/screens/RewardsScreen';
@@ -11,8 +13,7 @@ import RewardsScreen from './src/screens/RewardsScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function MainTabs({ route }: any) {
-  const { user } = route.params;
+function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -25,7 +26,6 @@ function MainTabs({ route }: any) {
       <Tab.Screen 
         name="Home" 
         component={HomeScreen}
-        initialParams={{ user }}
         options={{ 
           tabBarLabel: 'Verkosten', 
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🍽️</Text> 
@@ -34,7 +34,6 @@ function MainTabs({ route }: any) {
       <Tab.Screen 
         name="Rewards" 
         component={RewardsScreen}
-        initialParams={{ user }}
         options={{ 
           tabBarLabel: 'Belohnungen', 
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎁</Text> 
@@ -45,10 +44,35 @@ function MainTabs({ route }: any) {
 }
 
 export default function App() {
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        const name = await AsyncStorage.getItem('userName');
+        setInitialRoute(name ? 'MainTabs' : 'NameInput');
+      } catch (e) {
+        console.error('Bootstrap error:', e);
+        setInitialRoute('NameInput');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    bootstrap();
+  }, []);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Navigator 
+        initialRouteName={initialRoute || 'NameInput'}
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="NameInput" component={NameInputScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="Rating" component={RatingScreen} />
       </Stack.Navigator>

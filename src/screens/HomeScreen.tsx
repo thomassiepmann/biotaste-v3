@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import { DUMMY_CHARGES, DUMMY_PRODUCTS } from '../data/dummyData';
-import { User, Product, Charge } from '../types';
+import { Product, Charge } from '../types';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Obst': '🍎',
@@ -10,30 +12,55 @@ const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Kräuter': '🌿',
 };
 
-export default function HomeScreen({ route, navigation }: any) {
-  const user: User = route.params?.user;
+export default function HomeScreen({ navigation }: any) {
+  const [userName, setUserName] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('userName').then(name => setUserName(name));
+  }, []);
 
   const getProductForCharge = (charge: Charge): Product | undefined => {
     return DUMMY_PRODUCTS.find(p => p.id === charge.product_id);
   };
 
   const handleTastePress = (charge: Charge, product: Product) => {
-    navigation.navigate('Rating', { charge, product, user });
+    navigation.navigate('Rating', { charge, product });
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Abmelden?',
+      'Möchtest du dich wirklich abmelden?',
+      [
+        { text: 'Nein', style: 'cancel' },
+        { 
+          text: 'Ja', 
+          onPress: async () => {
+            await AsyncStorage.removeItem('userName');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'NameInput' }],
+            });
+          }
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hallo {user?.name}! 👋</Text>
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakText}>🔥 {user?.streak_days} Tage Streak!</Text>
-          </View>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>Hallo, {userName}! 👋</Text>
         </View>
-        <View style={styles.pointsBadge}>
-          <Text style={styles.pointsText}>🌱 {user?.points} Punkte</Text>
-        </View>
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={28} color="#48bb78" />
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -99,36 +126,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flex: 1,
   },
   greeting: {
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.white,
-    marginBottom: theme.spacing.sm,
   },
-  streakBadge: {
-    backgroundColor: theme.colors.accent,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-    alignSelf: 'flex-start',
-  },
-  streakText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.white,
-  },
-  pointsBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-  },
-  pointsText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.white,
+  logoutButton: {
+    backgroundColor: theme.colors.white,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   content: {
     flex: 1,

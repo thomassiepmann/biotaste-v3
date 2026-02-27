@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
 import { theme } from '../constants/theme';
 import StarRating from '../components/StarRating';
 import EmojiPicker from '../components/EmojiPicker';
@@ -71,19 +72,47 @@ export default function RatingScreen({ route, navigation }: any) {
     return points;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (overallStars === 0) {
-      alert('Bitte gib eine Sternebewertung ab!');
+      Alert.alert('Fehler', 'Bitte gib eine Sternebewertung ab!');
       return;
     }
 
     const points = calculatePoints();
-    setShowPointsAnimation(true);
 
-    // After animation, navigate back
-    setTimeout(() => {
-      navigation.goBack();
-    }, 2500);
+    try {
+      // Speichere Bewertung in Supabase
+      const { error } = await supabase
+        .from('ratings')
+        .insert({
+          user_name: userName,
+          charge_id: charge.id,
+          product_id: product.id,
+          overall_stars: overallStars,
+          taste_emoji: tasteEmoji,
+          optic_emoji: opticEmoji,
+          texture_emoji: textureEmoji,
+          emoji_tags: selectedTags,
+          comment: comment.trim(),
+        });
+
+      if (error) {
+        console.error('Supabase error:', error);
+        Alert.alert('Fehler', 'Bewertung konnte nicht gespeichert werden. Bitte versuche es erneut.');
+        return;
+      }
+
+      // Erfolgreich gespeichert - zeige Animation
+      setShowPointsAnimation(true);
+
+      // Nach Animation zurück navigieren
+      setTimeout(() => {
+        navigation.goBack();
+      }, 2500);
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Fehler', 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
+    }
   };
 
   return (

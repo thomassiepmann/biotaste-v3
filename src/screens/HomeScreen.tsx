@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import { DUMMY_CHARGES, DUMMY_PRODUCTS } from '../data/dummyData';
-import { Product, Charge } from '../types';
+import { Product, Charge, WeeklyLoses, Streak } from '../types';
+import { getCurrentWeekLoses } from '../services/lotteryService';
+import { getCurrentStreak } from '../services/streakService';
+import StreakBadge from '../components/StreakBadge';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Obst': '🍎',
@@ -13,11 +16,40 @@ const CATEGORY_EMOJIS: { [key: string]: string } = {
 };
 
 export default function HomeScreen({ navigation }: any) {
+  const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [weeklyLoses, setWeeklyLoses] = useState<WeeklyLoses | null>(null);
+  const [streak, setStreak] = useState<Streak | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('userName').then(name => setUserName(name));
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    const storedUserId = await AsyncStorage.getItem('userId');
+    const storedUserName = await AsyncStorage.getItem('userName');
+    
+    setUserId(storedUserId);
+    setUserName(storedUserName);
+
+    if (storedUserId) {
+      // Lade Lose
+      const loses = await getCurrentWeekLoses(storedUserId);
+      setWeeklyLoses(loses);
+
+      // Lade Streak
+      const userStreak = await getCurrentStreak(storedUserId);
+      setStreak(userStreak);
+    }
+
+    setRefreshing(false);
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
 
   const getProductForCharge = (charge: Charge): Product | undefined => {
     return DUMMY_PRODUCTS.find(p => p.id === charge.product_id);
@@ -53,7 +85,22 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.greeting}>Hallo, {userName}! 👋</Text>
+          
+          {/* Lose-Anzeige */}
+          <View style={styles.losesDisplay}>
+            <Text style={styles.losesText}>
+              🎟️ {weeklyLoses?.total_loses || 0} {(weeklyLoses?.total_loses || 0) === 1 ? 'Los' : 'Lose'} diese Woche
+            </Text>
+          </View>
+
+          {/* Streak Badge */}
+          {streak && streak.current_streak > 0 && (
+            <View style={styles.streakContainer}>
+              <StreakBadge streak={streak} showProtection={false} />
+            </View>
+          )}
         </View>
+        
         <TouchableOpacity 
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -64,7 +111,12 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Section 1: Open for tasting */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Offen zum Verkosten 🍽️</Text>
@@ -135,6 +187,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.white,
+    marginBottom: theme.spacing.sm,
+  },
+  losesDisplay: {
+    marginBottom: theme.spacing.sm,
+  },
+  losesText: {
+    fontSize: 14,
+    color: theme.colors.white,
+    opacity: 0.9,
+  },
+  streakContainer: {
+    marginTop: theme.spacing.xs,
   },
   logoutButton: {
     backgroundColor: theme.colors.white,

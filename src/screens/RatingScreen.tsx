@@ -5,8 +5,10 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
 import StarRating from '../components/StarRating';
 import EmojiPicker from '../components/EmojiPicker';
-import PointsAnimation from '../components/PointsAnimation';
+import LosesAnimation from '../components/LosesAnimation';
 import { Product, Charge } from '../types';
+import { awardLoses } from '../services/lotteryService';
+import { updateStreak } from '../services/streakService';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Obst': '🍎',
@@ -37,6 +39,7 @@ const EMOJI_TAGS = {
 
 export default function RatingScreen({ route, navigation }: any) {
   const { charge, product }: { charge: Charge; product: Product } = route.params;
+  const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
 
   const [overallStars, setOverallStars] = useState(0);
@@ -45,9 +48,11 @@ export default function RatingScreen({ route, navigation }: any) {
   const [textureEmoji, setTextureEmoji] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
-  const [showPointsAnimation, setShowPointsAnimation] = useState(false);
+  const [showLosesAnimation, setShowLosesAnimation] = useState(false);
+  const [losesEarned, setLosesEarned] = useState(0);
 
   useEffect(() => {
+    AsyncStorage.getItem('userId').then(id => setUserId(id));
     AsyncStorage.getItem('userName').then(name => setUserName(name));
   }, []);
 
@@ -72,13 +77,23 @@ export default function RatingScreen({ route, navigation }: any) {
     return points;
   };
 
+  const calculateLoses = () => {
+    let loses = 1; // Basis-Los
+    if (comment.trim().length > 0) loses += 1; // +1 für Kommentar
+    // +1 für Foto würde hier hinzukommen (noch nicht implementiert)
+    return loses;
+  };
+
   const handleSubmit = async () => {
     if (overallStars === 0) {
       Alert.alert('Fehler', 'Bitte gib eine Sternebewertung ab!');
       return;
     }
 
-    const points = calculatePoints();
+    if (!userId) {
+      Alert.alert('Fehler', 'User ID nicht gefunden');
+      return;
+    }
 
     // Prüfe ob Supabase konfiguriert ist
     if (!isSupabaseConfigured) {
@@ -91,11 +106,14 @@ export default function RatingScreen({ route, navigation }: any) {
     }
 
     try {
-      // Speichere Bewertung in Supabase
-      const { error } = await supabase
+      const hasComment = comment.trim().length > 0;
+      const hasPhoto = false; // TODO: Foto-Upload implementieren
+
+      // 1. Speichere Bewertung in Supabase
+      const { error: ratingError } = await supabase
         .from('ratings')
         .insert({
-          user_name: userName,
+          user_id: userId,
           charge_id: charge.id,
           product_id: product.id,
           overall_stars: overallStars,
@@ -103,17 +121,39 @@ export default function RatingScreen({ route, navigation }: any) {
           optic_emoji: opticEmoji,
           texture_emoji: textureEmoji,
           emoji_tags: selectedTags,
-          comment: comment.trim(),
+          comment: comment.trim() || null,
+          loses_earned: calculateLoses(),
         });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        Alert.alert('Fehler', 'Bewertung konnte nicht gespeichert werden. Bitte versuche es erneut.');
+      if (ratingError) {
+        console.error('Supabase error:', ratingError);
+        Alert.alert('Fehler', 'Bewertung konnte nicht gespeichert werden.');
         return;
       }
 
-      // Erfolgreich gespeichert - zeige Animation
-      setShowPointsAnimation(true);
+      // 2. Vergebe Lose
+      const losesResult = await awardLoses(userId, hasComment, hasPhoto);
+      
+      if (!losesResult.success) {
+        Alert.alert('Info', losesResult.message);
+        navigation.goBack();
+        return;
+      }
+
+      // 3. Update Streak
+      const streakResult = await updateStreak(userId);
+
+      // 4. Zeige Feedback
+      const totalLoses = losesResult.losesAwarded + streakResult.bonusLoses;
+      setLosesEarned(totalLoses);
+      setShowLosesAnimation(true);
+
+      // Zeige zusätzliche Streak-Info
+      if (streakResult.bonusLoses > 0) {
+        setTimeout(() => {
+          Alert.alert('🔥 Streak-Bonus!', streakResult.message);
+        }, 2000);
+      }
 
       // Nach Animation zurück navigieren
       setTimeout(() => {
@@ -260,10 +300,10 @@ export default function RatingScreen({ route, navigation }: any) {
           <Text style={styles.characterCount}>{comment.length}/150</Text>
         </View>
 
-        {/* Points Preview */}
+        {/* Loses Preview */}
         <View style={styles.pointsPreview}>
           <Text style={styles.pointsPreviewText}>
-            Du bekommst +{calculatePoints()} Punkte
+            Du bekommst +{calculateLoses()} {calculateLoses() === 1 ? 'Los' : 'Lose'} 🎟️
           </Text>
         </View>
 
@@ -284,12 +324,13 @@ export default function RatingScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Points Animation */}
-      <PointsAnimation
-        visible={showPointsAnimation}
-        points={calculatePoints()}
-        onClose={() => setShowPointsAnimation(false)}
-      />
+      {/* Loses Animation */}
+      {showLosesAnimation && (
+        <LosesAnimation
+          losesEarned={losesEarned}
+          onComplete={() => setShowLosesAnimation(false)}
+        />
+      )}
     </View>
   );
 }

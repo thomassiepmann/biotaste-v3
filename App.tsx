@@ -62,20 +62,22 @@ export default function App() {
     bootstrap();
   }, []);
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        initialRouteName={initialRoute || 'NameInput'}
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="NameInput" component={NameInputScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="Rating" component={RatingScreen} />
-      </Stack.Navigator>
+      {isLoading ? (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Loading" component={LoadingScreen} />
+        </Stack.Navigator>
+      ) : (
+        <Stack.Navigator 
+          initialRouteName={initialRoute || 'NameInput'}
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="NameInput" component={NameInputScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Rating" component={RatingScreen} />
+        </Stack.Navigator>
+      )}
     </NavigationContainer>
   );
 }

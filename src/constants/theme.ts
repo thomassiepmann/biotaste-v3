@@ -22,6 +22,7 @@ export const theme = {
     // Status colors (keeping for app functionality)
     red: '#a64553',            // Using Paradieschen red
     yellow: '#FFCC00',
+    success: '#738a4c',        // Using primary green for success
   },
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
   borderRadius: { sm: 8, md: 12, lg: 16, xl: 24 }

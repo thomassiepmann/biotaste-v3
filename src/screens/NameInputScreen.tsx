@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
@@ -59,10 +59,15 @@ export default function NameInputScreen({ navigation }: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        {/* Header */}
+        {/* Header with Paradieschen Logo */}
         <View style={styles.header}>
-          <Text style={styles.emoji}>🌿</Text>
-          <Text style={styles.title}>Hallo! Wer bist du heute? 🌿</Text>
+          <Image 
+            source={require('../../assets/paradieschen-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Willkommen bei BioTaste! 🌿</Text>
+          <Text style={styles.subtitle}>Wer bist du heute?</Text>
         </View>
 
         {/* Input */}
@@ -132,16 +137,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.xl * 2,
   },
-  emoji: {
-    fontSize: 80,
+  logo: {
+    width: 200,
+    height: 100,
     marginBottom: theme.spacing.lg,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#2f855a',
+    color: theme.colors.primary,
     textAlign: 'center',
-    lineHeight: 36,
+    marginBottom: theme.spacing.sm,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   inputContainer: {
     marginBottom: theme.spacing.xl,
@@ -173,7 +185,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#48bb78',
+    backgroundColor: theme.colors.primary,
     borderRadius: theme.borderRadius.md,
     paddingVertical: theme.spacing.lg,
     alignItems: 'center',

@@ -8,15 +8,15 @@ export const DUMMY_USERS: User[] = [
 ];
 
 export const DUMMY_PRODUCTS: Product[] = [
-  { id: 'p1', name: 'Bio-Äpfel Gala', category: 'Obst', supplier: 'Obsthof Müller' },
-  { id: 'p2', name: 'Rispentomaten', category: 'Gemüse', supplier: 'BioGärtnerei Schmidt' },
-  { id: 'p3', name: 'Basilikum', category: 'Kräuter', supplier: 'Kräuterhof Weber' },
+  { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Bio-Äpfel Gala', category: 'Obst', supplier: 'Obsthof Müller' },
+  { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Rispentomaten', category: 'Gemüse', supplier: 'BioGärtnerei Schmidt' },
+  { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Basilikum', category: 'Kräuter', supplier: 'Kräuterhof Weber' },
 ];
 
 export const DUMMY_CHARGES: Charge[] = [
-  { id: 'c1', product_id: 'p1', charge_code: 'KW09-001', delivery_date: '2025-03-01', supplier_batch: 'ML-2025-09' },
-  { id: 'c2', product_id: 'p2', charge_code: 'KW09-002', delivery_date: '2025-03-02', supplier_batch: 'BS-2025-09' },
-  { id: 'c3', product_id: 'p3', charge_code: 'KW09-003', delivery_date: '2025-03-03', supplier_batch: 'KW-2025-09' },
+  { id: '660e8400-e29b-41d4-a716-446655440001', product_id: '550e8400-e29b-41d4-a716-446655440001', charge_code: 'KW09-001', delivery_date: '2025-03-01', supplier_batch: 'ML-2025-09' },
+  { id: '660e8400-e29b-41d4-a716-446655440002', product_id: '550e8400-e29b-41d4-a716-446655440002', charge_code: 'KW09-002', delivery_date: '2025-03-02', supplier_batch: 'BS-2025-09' },
+  { id: '660e8400-e29b-41d4-a716-446655440003', product_id: '550e8400-e29b-41d4-a716-446655440003', charge_code: 'KW09-003', delivery_date: '2025-03-03', supplier_batch: 'KW-2025-09' },
 ];
 
 export const DUMMY_REWARDS: Reward[] = [

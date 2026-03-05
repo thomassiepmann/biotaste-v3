@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "weekly-draw": "node scripts/weekly-draw.mjs"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
@@ -22,6 +23,7 @@
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-get-random-values": "1.11.0",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.16.0"
   },
@@ -29,5 +31,8 @@
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "react-native-get-random-values": "1.11.0"
+  }
 }

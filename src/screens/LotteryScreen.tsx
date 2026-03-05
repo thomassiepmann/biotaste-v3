@@ -138,15 +138,28 @@ export default function LotteryScreen() {
         {/* Regeln-Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💡 Wie sammle ich Lose?</Text>
+
+          <View style={styles.ruleCard}>
+            <Text style={styles.ruleEmoji}>⚖️</Text>
+            <View style={styles.ruleContent}>
+              <Text style={styles.ruleTitle}>Fairer Modus aktiv</Text>
+              <Text style={styles.ruleText}>
+                Für die Wochenziehung gilt: 1 Teilnehmer = 1 Los.
+              </Text>
+              <Text style={styles.ruleText}>
+                Alle mit mindestens 1 Bewertung haben die gleiche Chance.
+              </Text>
+            </View>
+          </View>
           
           <View style={styles.ruleCard}>
             <Text style={styles.ruleEmoji}>🎟️</Text>
             <View style={styles.ruleContent}>
-              <Text style={styles.ruleTitle}>Pro Bewertung</Text>
+              <Text style={styles.ruleTitle}>Für Motivation im Alltag</Text>
               <Text style={styles.ruleText}>• 1 Los = Basis-Bewertung</Text>
               <Text style={styles.ruleText}>• +1 Los = Mit Kommentar</Text>
               <Text style={styles.ruleText}>• +1 Los = Mit Foto</Text>
-              <Text style={styles.ruleLimit}>Max. 3 Lose pro Tag</Text>
+              <Text style={styles.ruleLimit}>Hinweis: Diese Lose zählen für Feedback/Streaks</Text>
             </View>
           </View>
 

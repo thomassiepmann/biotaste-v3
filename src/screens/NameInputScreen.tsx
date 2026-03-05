@@ -30,7 +30,7 @@ export default function NameInputScreen({ navigation }: any) {
       // Prüfe ob Name in Supabase existiert (case-insensitive)
       const { data, error } = await supabase
         .from('app_users')
-        .select('name')
+        .select('id, name')
         .ilike('name', trimmedName)
         .single();
 
@@ -42,6 +42,7 @@ export default function NameInputScreen({ navigation }: any) {
 
       // Name gefunden - speichere in AsyncStorage
       await AsyncStorage.setItem('userName', data.name);
+      await AsyncStorage.setItem('userId', data.id);
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],

@@ -13,9 +13,14 @@ Das neue Lotterie/Los-System ersetzt das alte Punkte-System und bietet ein spann
 - **Wöchentliche Ziehung** jeden Montag
 - **4 Gewinner** pro Woche (3 zufällig + 1 Qualität)
 - **Streak-Bonus** für tägliche Bewertungen
+- **Fairness für Wochenziehung:** 1 Teilnehmer = 1 Los (alle mit mindestens 1 Bewertung)
 
 ### Gewinnchancen
-Je mehr Lose, desto höher die Gewinnchance! Jedes Los ist ein Eintrag in die wöchentliche Ziehung.
+Für die **Wochenziehung** gilt der faire Modus:
+- Alle Teilnehmer mit mindestens einer Bewertung in der Woche kommen genau **einmal** in den Lostopf.
+- Gewinnchance ist für alle gleich (`1 / Anzahl Teilnehmer`).
+
+Die in der App angezeigten Lose dienen weiterhin Motivation, Feedback und Streak-Gamification.
 
 ---
 
@@ -47,28 +52,31 @@ Tägliche Bewertungen werden belohnt:
 
 1. **Zufalls-Gewinner 1** 🎁
    - Preis: 10€ Gutschein
-   - Gewichtet nach Anzahl der Lose
+   - Faire Ziehung (alle Teilnehmer gleich wahrscheinlich)
 
 2. **Zufalls-Gewinner 2** 🎁
    - Preis: 5€ Gutschein
-   - Gewichtet nach Anzahl der Lose
+   - Faire Ziehung (alle Teilnehmer gleich wahrscheinlich)
 
 3. **Zufalls-Gewinner 3** 📦
    - Preis: Überraschungsbox
-   - Gewichtet nach Anzahl der Lose
+   - Faire Ziehung (alle Teilnehmer gleich wahrscheinlich)
 
 4. **Qualitäts-Gewinner** ⭐
    - Preis: Spezial-Preis
    - Beste Bewertung der Woche (mit Kommentar)
 
-### Ziehungs-Algorithmus
+### Ziehungs-Algorithmus (fair)
 
 ```
-1. Sammle alle User mit Losen dieser Woche
-2. Erstelle gewichtete Liste (jedes Los = 1 Eintrag)
-3. Ziehe 3 zufällige Gewinner (keine Duplikate)
+1. Sammle alle User mit >= 1 Bewertung dieser Woche (DISTINCT user_id)
+2. Ziehe 3 zufällige Gewinner ohne Duplikate
 4. Wähle Qualitäts-Gewinner (höchste Sterne + Kommentar)
 ```
+
+Zufall erfolgt kryptografisch sicher:
+- App-Service: `globalThis.crypto.getRandomValues` (via `react-native-get-random-values`)
+- Script: `node:crypto.randomInt`
 
 ---
 
@@ -137,9 +145,30 @@ Streak-Verwaltung
 
 ### `winnerService.ts`
 Gewinner-Verwaltung
-- `drawWeeklyWinners()` - Zieht Gewinner (Admin)
+- `drawWeeklyWinners()` - Zieht Gewinner im fairen Modus (Admin)
 - `getCurrentWeekWinners()` - Lädt aktuelle Gewinner
 - `getAllWinners()` - Gewinner-Historie
+
+### `scripts/weekly-draw.mjs`
+CLI für Draw-Läufe (inkl. Testmodus)
+- `npm run weekly-draw -- --week=2024-W30 --dry-run`
+- Unterstützt `YYYY-MM-DD` und `YYYY-Www`
+- Lädt optional `.env.local` und `.env` automatisch
+
+Empfohlene ENV für CLI:
+```env
+SUPABASE_URL=https://...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Dry-Run Beispiel (verifiziert):
+```bash
+npm run weekly-draw -- --week=2024-W30 --dry-run
+```
+Ergebnis in dieser Umgebung:
+- Zeitraum korrekt auf `2024-07-22` bis `2024-07-29` aufgelöst
+- `Bewertungen: 0`, `Teilnehmer: 0`
+- Keine DB-Schreiboperation (`Dry-run abgeschlossen` / keine Gewinner)
 
 ---
 

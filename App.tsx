@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import 'react-native-get-random-values';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -8,7 +9,7 @@ import LoadingScreen from './src/components/LoadingScreen';
 import NameInputScreen from './src/screens/NameInputScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import RatingScreen from './src/screens/RatingScreen';
-import RewardsScreen from './src/screens/RewardsScreen';
+import LotteryScreen from './src/screens/LotteryScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -32,10 +33,10 @@ function MainTabs() {
         }}
       />
       <Tab.Screen 
-        name="Rewards" 
-        component={RewardsScreen}
+        name="Lottery" 
+        component={LotteryScreen}
         options={{ 
-          tabBarLabel: 'Belohnungen', 
+          tabBarLabel: 'Lotterie', 
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎁</Text> 
         }}
       />

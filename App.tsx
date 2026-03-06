@@ -9,6 +9,7 @@ import NameInputScreen from './src/screens/NameInputScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import RatingScreen from './src/screens/RatingScreen';
 import RewardsScreen from './src/screens/RewardsScreen';
+import DeveloperScreen from './src/screens/DeveloperScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -37,6 +38,14 @@ function MainTabs() {
         options={{ 
           tabBarLabel: 'Belohnungen', 
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎁</Text> 
+        }}
+      />
+      <Tab.Screen
+        name="Developer"
+        component={DeveloperScreen}
+        options={{
+          tabBarLabel: 'Developer',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🛠️</Text>
         }}
       />
     </Tab.Navigator>

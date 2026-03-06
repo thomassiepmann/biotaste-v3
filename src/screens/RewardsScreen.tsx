@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
   },
   rewardsGrid: {
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
   rewardCard: {
     backgroundColor: theme.colors.white,

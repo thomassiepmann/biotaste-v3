@@ -9,8 +9,10 @@ export interface Product {
   id: string;
   name: string;
   category: string;
-  supplier: string;
+  supplier?: string;
   image_url?: string;
+  is_active?: boolean;
+  created_at?: string;
 }
 
 export interface Charge {

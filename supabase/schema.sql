@@ -52,9 +52,14 @@ CREATE TABLE ratings (
   taste_emoji TEXT,
   optic_emoji TEXT,
   texture_emoji TEXT,
-  comment TEXT,
+  comment TEXT CHECK (LENGTH(comment) <= 150),
   photo_url TEXT,
   points_earned INTEGER DEFAULT 15,
+  -- Bias-Kontroll Metadaten (Masterplan EISERN)
+  shift TEXT CHECK (shift IN ('frueh', 'spaet')), -- Schicht-Bias Kontrolle
+  location TEXT, -- Standort
+  batch_id TEXT, -- Chargen-ID
+  rated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- Exakter Zeitpunkt
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, charge_id)
 );
@@ -70,6 +75,10 @@ CREATE TABLE rewards (
 );
 
 -- Product Averages View
+-- ============================================
+-- v_product_signal: Ampel + Konfidenz (Masterplan)
+-- ============================================
+-- Regeln: n<10 = insufficient, 10<=n<30 = indicative, n>=30 = robust
 CREATE VIEW product_averages AS
 SELECT 
   p.id as product_id,
@@ -81,11 +90,26 @@ SELECT
   c.delivery_date,
   COUNT(r.id) as rating_count,
   ROUND(AVG(r.overall_stars), 1) as avg_stars,
+  -- Konfidenz-Stufen per Masterplan
   CASE 
+    WHEN COUNT(r.id) < 10 THEN 'insufficient'
+    WHEN COUNT(r.id) < 30 THEN 'indicative'
+    ELSE 'robust'
+  END as confidence_level,
+  -- Ampel erst ab n>=10 (Masterplan EISERN)
+  CASE 
+    WHEN COUNT(r.id) < 10 THEN NULL  -- Zu wenig Daten
     WHEN AVG(r.overall_stars) >= 4.0 THEN 'green'
     WHEN AVG(r.overall_stars) >= 2.5 THEN 'yellow'
     ELSE 'red'
-  END as ampel_status
+  END as ampel_status,
+  -- Ampel-Text für UI
+  CASE 
+    WHEN COUNT(r.id) < 10 THEN 'Zu wenig Daten'
+    WHEN AVG(r.overall_stars) >= 4.0 THEN 'Empfohlen'
+    WHEN AVG(r.overall_stars) >= 2.5 THEN 'Beobachten'
+    ELSE 'Prüfen'
+  END as ampel_text
 FROM products p
 JOIN charges c ON c.product_id = p.id
 LEFT JOIN ratings r ON r.charge_id = c.id

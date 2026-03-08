@@ -5,10 +5,31 @@
 -- Projekt: biotaste-v3
 -- Feature: Emoji-Tags + Kommentarfeld im RatingScreen
 
+-- ============================================
+-- BIASTASTE V3 - KRITISCHE MASTERPLAN UPDATES
+-- ============================================
+-- Datum: 2026-03-08
+-- Feature: Bias-Kontroll-Felder + n>=10 Regel
+
 -- Erweitere die ratings Tabelle um neue Felder
 ALTER TABLE ratings 
 ADD COLUMN IF NOT EXISTS emoji_tags text[], -- Array der gewählten Tag-IDs
-ADD COLUMN IF NOT EXISTS comment text; -- Kommentar-Text (max. 150 Zeichen)
+ADD COLUMN IF NOT EXISTS comment text CHECK (LENGTH(comment) <= 150); -- Kommentar-Text (max. 150 Zeichen)
+
+-- ============================================
+-- KRITISCH: Bias-Kontroll Metadaten (Masterplan EISERN)
+-- ============================================
+ALTER TABLE ratings
+ADD COLUMN IF NOT EXISTS shift TEXT CHECK (shift IN ('frueh', 'spaet')), -- Schicht-Bias Kontrolle
+ADD COLUMN IF NOT EXISTS location TEXT, -- Standort für Bias-Analyse
+ADD COLUMN IF NOT EXISTS batch_id TEXT, -- Chargen-ID für Tracking
+ADD COLUMN IF NOT EXISTS rated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(); -- Exakter Zeitpunkt
+
+-- Index für schnelle Bias-Analysen
+CREATE INDEX IF NOT EXISTS idx_ratings_shift ON ratings(shift);
+CREATE INDEX IF NOT EXISTS idx_ratings_location ON ratings(location);
+CREATE INDEX IF NOT EXISTS idx_ratings_batch ON ratings(batch_id);
+CREATE INDEX IF NOT EXISTS idx_ratings_rated_at ON ratings(rated_at);
 
 -- Beispiel-Daten:
 -- emoji_tags: ['suess', 'frisch', 'top_qualitaet']

@@ -35,7 +35,12 @@ export interface Rating {
   texture_emoji: string;
   comment?: string;
   photo_url?: string;
-  loses_earned: number;
+  points_earned: number;
+  // Bias-Kontroll Metadaten (Masterplan)
+  shift?: 'frueh' | 'spaet';
+  location?: string;
+  batch_id?: string;
+  rated_at?: string;
 }
 
 // ============================================

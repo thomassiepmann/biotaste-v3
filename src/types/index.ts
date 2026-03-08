@@ -8,12 +8,10 @@ export interface User {
 export interface Product {
   id: string;
   name: string;
-  description?: string;
-  price: number;
   category: string;
   supplier?: string;
   image_url?: string;
-  is_available: boolean;
+  is_active?: boolean;
   created_at?: string;
 }
 

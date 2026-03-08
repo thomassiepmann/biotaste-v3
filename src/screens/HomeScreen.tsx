@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
@@ -7,8 +7,8 @@ import { DUMMY_CHARGES } from '../data/dummyData';
 import { Product, Charge, WeeklyLoses, Streak } from '../types';
 import { getCurrentWeekLoses } from '../services/lotteryService';
 import { getCurrentStreak } from '../services/streakService';
-import { getProducts } from '../services/productService';
 import StreakBadge from '../components/StreakBadge';
+import { supabase } from '../lib/supabase';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Obst': '🍎',
@@ -22,7 +22,8 @@ export default function HomeScreen({ navigation }: any) {
   const [weeklyLoses, setWeeklyLoses] = useState<WeeklyLoses | null>(null);
   const [streak, setStreak] = useState<Streak | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -46,10 +47,27 @@ export default function HomeScreen({ navigation }: any) {
       setStreak(userStreak);
     }
 
-    // Lade Produkte von Supabase
-    const fetchedProducts = await getProducts();
-    setProducts(fetchedProducts);
-    setLoading(false);
+    // Fetch products from Supabase
+    try {
+      setProductsLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) {
+        setProductsError(error.message);
+        console.error('Error fetching products:', error);
+      } else if (data) {
+        setProducts(data);
+      }
+    } catch (error) {
+      setProductsError(error instanceof Error ? error.message : 'Unknown error');
+      console.error('Unexpected error fetching products:', error);
+    } finally {
+      setProductsLoading(false);
+    }
+
     setRefreshing(false);
   };
 
@@ -128,15 +146,22 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Offen zum Verkosten 🍽️</Text>
           
-          {loading ? (
+          {productsLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Produkte werden geladen...</Text>
+              <Text style={styles.loadingText}>Lade Produkte...</Text>
+            </View>
+          ) : productsError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Fehler beim Laden der Produkte: {productsError}</Text>
+            </View>
+          ) : products.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Keine aktiven Produkte gefunden</Text>
             </View>
           ) : (
             DUMMY_CHARGES.map((charge) => {
-            const product = getProductForCharge(charge);
-            if (!product) return null;
+              const product = getProductForCharge(charge);
+              if (!product) return null;
 
             return (
               <View key={charge.id} style={styles.productCard}>
@@ -149,7 +174,7 @@ export default function HomeScreen({ navigation }: any) {
                   
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productSupplier}>{product.supplier || 'Bio-Lieferant'}</Text>
+                    <Text style={styles.productSupplier}>{product.supplier}</Text>
                     <Text style={styles.productCharge}>
                       {charge.charge_code} • {new Date(charge.delivery_date).toLocaleDateString('de-DE')}
                     </Text>
@@ -164,8 +189,8 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
             );
-          })
-          )}
+          })}
+          )
         </View>
 
         {/* Section 2: Already rated */}
@@ -311,11 +336,30 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   loadingText: {
     fontSize: 14,
     color: theme.colors.gray,
-    marginTop: theme.spacing.md,
+  },
+  errorContainer: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#e53e3e',
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: theme.colors.gray,
   },
 });

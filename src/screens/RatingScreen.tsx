@@ -7,7 +7,7 @@ import StarRating from '../components/StarRating';
 import EmojiPicker from '../components/EmojiPicker';
 import LosesAnimation from '../components/LosesAnimation';
 import { Product, Charge } from '../types';
-import { awardLoses } from '../services/lotteryService';
+import { awardLoses, getCurrentWeekStart } from '../services/lotteryService';
 import { updateStreak } from '../services/streakService';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
@@ -84,6 +84,11 @@ export default function RatingScreen({ route, navigation }: any) {
     return loses;
   };
 
+  const getCurrentShift = (): 'frueh' | 'spaet' => {
+    const hour = new Date().getHours();
+    return hour >= 6 && hour < 14 ? 'frueh' : 'spaet';
+  };
+
   const handleSubmit = async () => {
     if (overallStars === 0) {
       Alert.alert('Fehler', 'Bitte gib eine Sternebewertung ab!');
@@ -109,20 +114,41 @@ export default function RatingScreen({ route, navigation }: any) {
       const hasComment = comment.trim().length > 0;
       const hasPhoto = false; // TODO: Foto-Upload implementieren
 
-      // 1. Speichere Bewertung in Supabase
+      // KRITISCH: Prüfe Tages-Limit VOR dem Speichern (Fix Race Condition)
+      const { data: loseData } = await supabase
+        .from('loses')
+        .select('daily_count, last_rating_date')
+        .eq('user_id', userId)
+        .eq('week_start', getCurrentWeekStart())
+        .single();
+
+      const today = new Date().toISOString().split('T')[0];
+      if (loseData && loseData.last_rating_date === today && loseData.daily_count >= 3) {
+        Alert.alert(
+          '🎟️ Tages-Limit erreicht',
+          'Du hast heute bereits 3 Lose gesammelt. Morgen geht es weiter!'
+        );
+        return;
+      }
+
+      // 1. Speichere Bewertung in Supabase mit Bias-Kontroll Metadaten
       const { error: ratingError } = await supabase
         .from('ratings')
         .insert({
           user_id: userId,
           charge_id: charge.id,
-          product_id: product.id,
           overall_stars: overallStars,
           taste_emoji: tasteEmoji,
           optic_emoji: opticEmoji,
           texture_emoji: textureEmoji,
           emoji_tags: selectedTags,
           comment: comment.trim() || null,
-          loses_earned: calculateLoses(),
+          points_earned: calculatePoints(),
+          // Bias-Kontroll Metadaten (Masterplan EISERN)
+          shift: getCurrentShift(),
+          location: 'Hauptfiliale', // TODO: Standort-Auswahl implementieren
+          batch_id: charge.supplier_batch || null,
+          rated_at: new Date().toISOString(),
         });
 
       if (ratingError) {

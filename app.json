@@ -1,6 +1,7 @@
 {
   "expo": {
-    "name": "Paradieschen",
+    "owner": "siepmannt",
+    "name": "biotaste-v3",
     "slug": "biotaste-v3",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,8 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.thomassiepmann.biotaste"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -23,8 +23,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.thomassiepmann.biotaste",
-      "versionCode": 1
+      "package": "com.thomassiepmann.biotaste"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,7 +32,6 @@
       "eas": {
         "projectId": "f8bbde7e-4fbe-4743-8257-3a222620d4d1"
       }
-    },
-    "owner": "siepmannt"
+    }
   }
 }

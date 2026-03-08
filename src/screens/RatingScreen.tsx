@@ -186,7 +186,7 @@ export default function RatingScreen({ route, navigation }: any) {
             </Text>
           </View>
           <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productSupplier}>{product.supplier}</Text>
+          <Text style={styles.productSupplier}>{product.supplier || 'Bio-Lieferant'}</Text>
           <Text style={styles.productCharge}>
             {charge.charge_code} • {new Date(charge.delivery_date).toLocaleDateString('de-DE')}
           </Text>

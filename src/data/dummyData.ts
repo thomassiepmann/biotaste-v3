@@ -7,10 +7,35 @@ export const DUMMY_USERS: User[] = [
   { id: '4', name: 'David', pin: '0000', points: 210, streak_days: 7, last_rating_date: null, role: 'employee' },
 ];
 
+// Note: Products are now fetched from Supabase. This is kept for fallback/testing only.
 export const DUMMY_PRODUCTS: Product[] = [
-  { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Bio-Äpfel Gala', category: 'Obst', supplier: 'Obsthof Müller' },
-  { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Rispentomaten', category: 'Gemüse', supplier: 'BioGärtnerei Schmidt' },
-  { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Basilikum', category: 'Kräuter', supplier: 'Kräuterhof Weber' },
+  { 
+    id: '550e8400-e29b-41d4-a716-446655440001', 
+    name: 'Bio-Äpfel Gala', 
+    description: 'Süße, knackige Bio-Äpfel aus regionaler Erzeugung.',
+    price: 3.49,
+    category: 'Obst', 
+    supplier: 'Obsthof Müller',
+    is_available: true 
+  },
+  { 
+    id: '550e8400-e29b-41d4-a716-446655440002', 
+    name: 'Rispentomaten', 
+    description: 'Saftige, sonnengereifte Bio-Tomaten am Strauch.',
+    price: 2.99,
+    category: 'Gemüse', 
+    supplier: 'BioGärtnerei Schmidt',
+    is_available: true 
+  },
+  { 
+    id: '550e8400-e29b-41d4-a716-446655440003', 
+    name: 'Basilikum', 
+    description: 'Frisches, aromatisches Bio-Basilikum im Topf.',
+    price: 2.49,
+    category: 'Kräuter', 
+    supplier: 'Kräuterhof Weber',
+    is_available: true 
+  },
 ];
 
 export const DUMMY_CHARGES: Charge[] = [

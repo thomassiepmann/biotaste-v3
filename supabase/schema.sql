@@ -14,15 +14,22 @@ CREATE TABLE users (
 );
 
 -- Products Table
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
+  description TEXT,
+  price NUMERIC NOT NULL,
   category TEXT,
   supplier TEXT,
   image_url TEXT,
-  active BOOLEAN DEFAULT true,
+  is_available BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Row Level Security (RLS) Policy for public read access
+CREATE POLICY "Allow public read access" ON products
+  FOR SELECT
+  USING (true);
 
 -- Charges Table
 CREATE TABLE charges (

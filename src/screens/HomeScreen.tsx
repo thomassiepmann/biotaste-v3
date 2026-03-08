@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
-import { DUMMY_CHARGES, DUMMY_PRODUCTS } from '../data/dummyData';
+import { DUMMY_CHARGES } from '../data/dummyData';
 import { Product, Charge, WeeklyLoses, Streak } from '../types';
 import { getCurrentWeekLoses } from '../services/lotteryService';
 import { getCurrentStreak } from '../services/streakService';
+import { getProducts } from '../services/productService';
 import StreakBadge from '../components/StreakBadge';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
@@ -20,6 +21,8 @@ export default function HomeScreen({ navigation }: any) {
   const [userName, setUserName] = useState<string | null>(null);
   const [weeklyLoses, setWeeklyLoses] = useState<WeeklyLoses | null>(null);
   const [streak, setStreak] = useState<Streak | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -43,6 +46,10 @@ export default function HomeScreen({ navigation }: any) {
       setStreak(userStreak);
     }
 
+    // Lade Produkte von Supabase
+    const fetchedProducts = await getProducts();
+    setProducts(fetchedProducts);
+    setLoading(false);
     setRefreshing(false);
   };
 
@@ -52,7 +59,7 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const getProductForCharge = (charge: Charge): Product | undefined => {
-    return DUMMY_PRODUCTS.find(p => p.id === charge.product_id);
+    return products.find(p => p.id === charge.product_id);
   };
 
   const handleTastePress = (charge: Charge, product: Product) => {
@@ -121,7 +128,13 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Offen zum Verkosten 🍽️</Text>
           
-          {DUMMY_CHARGES.map((charge) => {
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Produkte werden geladen...</Text>
+            </View>
+          ) : (
+            DUMMY_CHARGES.map((charge) => {
             const product = getProductForCharge(charge);
             if (!product) return null;
 
@@ -136,7 +149,7 @@ export default function HomeScreen({ navigation }: any) {
                   
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productSupplier}>{product.supplier}</Text>
+                    <Text style={styles.productSupplier}>{product.supplier || 'Bio-Lieferant'}</Text>
                     <Text style={styles.productCharge}>
                       {charge.charge_code} • {new Date(charge.delivery_date).toLocaleDateString('de-DE')}
                     </Text>
@@ -151,7 +164,8 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
             );
-          })}
+          })
+          )}
         </View>
 
         {/* Section 2: Already rated */}
@@ -291,5 +305,17 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     color: theme.colors.gray,
+  },
+  loadingContainer: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    marginTop: theme.spacing.md,
   },
 });

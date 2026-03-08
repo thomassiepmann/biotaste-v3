@@ -163,34 +163,34 @@ export default function HomeScreen({ navigation }: any) {
               const product = getProductForCharge(charge);
               if (!product) return null;
 
-            return (
-              <View key={charge.id} style={styles.productCard}>
-                <View style={styles.productCardContent}>
-                  <View style={styles.categoryIcon}>
-                    <Text style={styles.categoryEmoji}>
-                      {CATEGORY_EMOJIS[product.category] || '🌱'}
-                    </Text>
+              return (
+                <View key={charge.id} style={styles.productCard}>
+                  <View style={styles.productCardContent}>
+                    <View style={styles.categoryIcon}>
+                      <Text style={styles.categoryEmoji}>
+                        {CATEGORY_EMOJIS[product.category] || '🌱'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName}>{product.name}</Text>
+                      <Text style={styles.productSupplier}>{product.supplier}</Text>
+                      <Text style={styles.productCharge}>
+                        {charge.charge_code} • {new Date(charge.delivery_date).toLocaleDateString('de-DE')}
+                      </Text>
+                    </View>
                   </View>
-                  
-                  <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productSupplier}>{product.supplier}</Text>
-                    <Text style={styles.productCharge}>
-                      {charge.charge_code} • {new Date(charge.delivery_date).toLocaleDateString('de-DE')}
-                    </Text>
-                  </View>
-                </View>
 
-                <TouchableOpacity
-                  style={styles.tasteButton}
-                  onPress={() => handleTastePress(charge, product)}
-                >
-                  <Text style={styles.tasteButtonText}>Jetzt verkosten →</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-          )
+                  <TouchableOpacity
+                    style={styles.tasteButton}
+                    onPress={() => handleTastePress(charge, product)}
+                  >
+                    <Text style={styles.tasteButtonText}>Jetzt verkosten →</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          )}
         </View>
 
         {/* Section 2: Already rated */}

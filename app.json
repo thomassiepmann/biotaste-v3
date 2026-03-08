@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "siepmannt",
     "name": "biotaste-v3",
     "slug": "biotaste-v3",
     "version": "1.0.0",
@@ -21,10 +22,16 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.thomassiepmann.biotaste"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f8bbde7e-4fbe-4743-8257-3a222620d4d1"
+      }
     }
   }
 }

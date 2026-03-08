@@ -1,0 +1,60 @@
+name: Weekly Draw
+
+on:
+  schedule:
+    # Montag 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run ohne DB-Write'
+        required: true
+        default: true
+        type: boolean
+      week:
+        description: 'Optionales Wochenformat (YYYY-MM-DD oder YYYY-Www)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run weekly draw
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_WEEK: ${{ github.event.inputs.week }}
+        run: |
+          set -euo pipefail
+
+          ARGS=""
+
+          if [ -n "${INPUT_WEEK:-}" ]; then
+            ARGS="$ARGS --week=$INPUT_WEEK"
+          fi
+
+          # workflow_dispatch default: dry-run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${INPUT_DRY_RUN:-true}" = "true" ]; then
+              ARGS="$ARGS --dry-run"
+            fi
+          fi
+
+          echo "Running: npm run weekly-draw -- $ARGS"
+          npm run weekly-draw -- $ARGS

@@ -5,15 +5,15 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
 
 export default function NameInputScreen({ navigation }: any) {
-  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async () => {
-    const trimmedName = name.trim();
+    const trimmedCode = code.trim().toUpperCase();
     
-    if (!trimmedName) {
-      setErrorMessage('Bitte gib deinen Namen ein');
+    if (!trimmedCode || trimmedCode.length !== 3) {
+      setErrorMessage('Bitte gib einen 3-stelligen Code ein');
       return;
     }
 
@@ -27,20 +27,20 @@ export default function NameInputScreen({ navigation }: any) {
     setErrorMessage('');
 
     try {
-      // Prüfe ob Name in Supabase existiert (case-insensitive)
+      // Prüfe ob Code in Supabase existiert (case-insensitive)
       const { data, error } = await supabase
         .from('app_users')
         .select('id, name')
-        .ilike('name', trimmedName)
+        .ilike('code', trimmedCode)
         .single();
 
       if (error || !data) {
-        setErrorMessage('Name nicht bekannt. Bitte wende dich an den Admin.');
+        setErrorMessage('Code nicht bekannt. Bitte wende dich an den Admin.');
         setIsLoading(false);
         return;
       }
 
-      // Name gefunden - speichere in AsyncStorage
+      // Code gefunden - speichere in AsyncStorage
       await AsyncStorage.setItem('userName', data.name);
       await AsyncStorage.setItem('userId', data.id);
       navigation.reset({
@@ -48,7 +48,7 @@ export default function NameInputScreen({ navigation }: any) {
         routes: [{ name: 'MainTabs' }],
       });
     } catch (error) {
-      console.error('Error validating name:', error);
+      console.error('Error validating code:', error);
       setErrorMessage('Verbindungsfehler. Bitte versuche es erneut.');
       setIsLoading(false);
     }
@@ -68,7 +68,7 @@ export default function NameInputScreen({ navigation }: any) {
             resizeMode="contain"
           />
           <Text style={styles.title}>Willkommen bei BioTaste! 🌿</Text>
-          <Text style={styles.subtitle}>Wer bist du heute?</Text>
+          <Text style={styles.subtitle}>Gib deinen 3-Buchstaben-Code ein</Text>
         </View>
 
         {/* Input */}
@@ -78,15 +78,16 @@ export default function NameInputScreen({ navigation }: any) {
               styles.input,
               errorMessage && styles.inputError,
             ]}
-            placeholder="Dein Name, z. B. Max Mustermann"
+            placeholder="Dein Code, z. B. MXM"
             placeholderTextColor={theme.colors.gray}
-            value={name}
+            value={code}
             onChangeText={(text) => {
-              setName(text);
+              setCode(text);
               setErrorMessage('');
             }}
             autoFocus={true}
-            autoCapitalize="words"
+            autoCapitalize="characters"
+            maxLength={3}
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
             editable={!isLoading}
@@ -117,7 +118,7 @@ export default function NameInputScreen({ navigation }: any) {
 
         {/* Hint */}
         <Text style={styles.hint}>
-          Dein Name wird nur lokal und für Punktezwecke verwendet. Du kannst ihn jederzeit löschen (Logout).
+          Dein Code wird nur lokal und für Punktezwecke verwendet. Du kannst ihn jederzeit löschen (Logout).
         </Text>
       </View>
     </KeyboardAvoidingView>

@@ -9,6 +9,7 @@
 CREATE TABLE IF NOT EXISTS app_users (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   name text UNIQUE NOT NULL,
+  code text UNIQUE,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );
@@ -16,19 +17,23 @@ CREATE TABLE IF NOT EXISTS app_users (
 -- Index für schnelle Name-Suche (case-insensitive)
 CREATE INDEX IF NOT EXISTS idx_app_users_name_lower ON app_users (LOWER(name));
 
+-- Index für schnelle Code-Suche (case-insensitive)
+CREATE INDEX IF NOT EXISTS idx_app_users_code_lower ON app_users (LOWER(code));
+
 -- Kommentar für Dokumentation
 COMMENT ON TABLE app_users IS 'Registrierte App-Nutzer - nur diese Namen dürfen sich einloggen';
 COMMENT ON COLUMN app_users.name IS 'Vollständiger Name des Users (case-insensitive beim Login)';
+COMMENT ON COLUMN app_users.code IS '3-Buchstaben-Code für den Login (z.B. MXM, THS)';
 
 -- ============================================
 -- Beispiel-Daten (für Testing)
 -- ============================================
-INSERT INTO app_users (name) VALUES 
-  ('Max Mustermann'),
-  ('Anna Schmidt'),
-  ('Tom Weber'),
-  ('Lisa Müller'),
-  ('Peter Klein')
+INSERT INTO app_users (name, code) VALUES 
+  ('Max Mustermann', 'MXM'),
+  ('Anna Schmidt', 'ANS'),
+  ('Tom Weber', 'TOW'),
+  ('Lisa Müller', 'LIM'),
+  ('Peter Klein', 'PEK')
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================

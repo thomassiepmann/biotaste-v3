@@ -1,16 +1,87 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
 
+type UserSuggestion = {
+  id: string;
+  name: string;
+};
+
+const normalizeSearchInput = (value: string) =>
+  value
+    .trim()
+    .replace(/[^A-Za-z0-9äöüÄÖÜß\s-]/g, '')
+    .replace(/\s+/g, ' ');
+
 export default function NameInputScreen({ navigation }: any) {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserSuggestion | null>(null);
+
+  useEffect(() => {
+    const searchTerm = normalizeSearchInput(name);
+
+    if (searchTerm.length < 3 || !isSupabaseConfigured) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('id, name')
+        .ilike('name', `${searchTerm}%`)
+        .order('name', { ascending: true })
+        .limit(5);
+
+      if (error) {
+        setSuggestions([]);
+        setSelectedUser(null);
+        setErrorMessage('Namenssuche momentan nicht verfügbar. Bitte versuche es erneut.');
+        setIsSearching(false);
+        return;
+      }
+
+      const matches = data ?? [];
+
+      // Automatische Namensauswahl, sobald nach 3+ Buchstaben genau 1 Treffer existiert
+      if (matches.length === 1) {
+        const user = matches[0];
+        setSelectedUser(user);
+        setSuggestions(matches);
+
+        if (searchTerm.toLowerCase() !== user.name.trim().toLowerCase()) {
+          setName(user.name);
+        }
+      } else {
+        setSelectedUser(null);
+        setSuggestions(matches);
+      }
+
+      setIsSearching(false);
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [name]);
+
+  const selectUser = (user: UserSuggestion) => {
+    setName(user.name);
+    setSelectedUser(user);
+    setSuggestions([]);
+    setErrorMessage('');
+  };
 
   const handleSubmit = async () => {
     const trimmedName = name.trim();
+    const normalizedName = normalizeSearchInput(name);
     
     if (!trimmedName) {
       setErrorMessage('Bitte gib deinen Namen ein');
@@ -27,22 +98,57 @@ export default function NameInputScreen({ navigation }: any) {
     setErrorMessage('');
 
     try {
-      // Prüfe ob Name in Supabase existiert (case-insensitive)
-      const { data, error } = await supabase
-        .from('app_users')
-        .select('id, name')
-        .ilike('name', trimmedName)
-        .single();
+      // Nutze vorausgewählten Namen falls vorhanden
+      let resolvedUser: UserSuggestion | null = selectedUser;
 
-      if (error || !data) {
+      if (!resolvedUser) {
+        // 1) Prefix-Suche und dann exakten Match bevorzugen
+        const { data: prefixData, error: prefixError } = await supabase
+          .from('app_users')
+          .select('id, name')
+          .ilike('name', `${normalizedName}%`)
+          .order('name', { ascending: true })
+          .limit(20);
+
+        if (prefixError) {
+          console.error('Name lookup failed:', prefixError);
+          setErrorMessage('Namenssuche fehlgeschlagen. Bitte später erneut versuchen.');
+          setIsLoading(false);
+          return;
+        }
+
+        const matches = prefixData ?? [];
+
+        if (matches.length === 1) {
+          resolvedUser = matches[0];
+          setName(matches[0].name);
+          setSelectedUser(matches[0]);
+        } else if (matches.length > 1) {
+          const exactMatch = matches.find(
+            (user) => user.name.trim().toLowerCase() === normalizedName.toLowerCase()
+          );
+
+          if (exactMatch) {
+            resolvedUser = exactMatch;
+            setSelectedUser(exactMatch);
+          } else {
+            setSuggestions(matches.slice(0, 5));
+            setErrorMessage('Mehrere Namen gefunden – bitte aus der Liste auswählen.');
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      if (!resolvedUser) {
         setErrorMessage('Name nicht bekannt. Bitte wende dich an den Admin.');
         setIsLoading(false);
         return;
       }
 
       // Name gefunden - speichere in AsyncStorage
-      await AsyncStorage.setItem('userName', data.name);
-      await AsyncStorage.setItem('userId', data.id);
+      await AsyncStorage.setItem('userName', resolvedUser.name);
+      await AsyncStorage.setItem('userId', resolvedUser.id);
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
@@ -83,6 +189,7 @@ export default function NameInputScreen({ navigation }: any) {
             value={name}
             onChangeText={(text) => {
               setName(text);
+              setSelectedUser(null);
               setErrorMessage('');
             }}
             autoFocus={true}
@@ -91,6 +198,30 @@ export default function NameInputScreen({ navigation }: any) {
             onSubmitEditing={handleSubmit}
             editable={!isLoading}
           />
+
+          {isSearching ? (
+            <Text style={styles.searchHint}>Suche Namen…</Text>
+          ) : null}
+
+          {suggestions.length > 0 ? (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((user) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={styles.suggestionItem}
+                  onPress={() => selectUser(user)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.suggestionText}>{user.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+
+          {selectedUser ? (
+            <Text style={styles.searchHint}>✅ Name automatisch ausgewählt</Text>
+          ) : null}
+
           {errorMessage ? (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{errorMessage}</Text>
@@ -171,6 +302,29 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: '#e53e3e',
+  },
+  searchHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  suggestionsContainer: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.grayLight,
+    borderRadius: theme.borderRadius.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  suggestionItem: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf2f7',
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: theme.colors.text,
   },
   errorBox: {
     backgroundColor: '#fff5f5',

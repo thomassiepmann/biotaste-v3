@@ -4,10 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 import { DUMMY_CHARGES } from '../data/dummyData';
-import { Product, Charge, WeeklyLoses, Streak } from '../types';
-import { getCurrentWeekLoses } from '../services/lotteryService';
-import { getCurrentStreak } from '../services/streakService';
-import StreakBadge from '../components/StreakBadge';
+import { Product, Charge } from '../types';
 import { supabase } from '../lib/supabase';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
@@ -19,8 +16,6 @@ const CATEGORY_EMOJIS: { [key: string]: string } = {
 export default function HomeScreen({ navigation }: any) {
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const [weeklyLoses, setWeeklyLoses] = useState<WeeklyLoses | null>(null);
-  const [streak, setStreak] = useState<Streak | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -36,16 +31,6 @@ export default function HomeScreen({ navigation }: any) {
     
     setUserId(storedUserId);
     setUserName(storedUserName);
-
-    if (storedUserId) {
-      // Lade Lose
-      const loses = await getCurrentWeekLoses(storedUserId);
-      setWeeklyLoses(loses);
-
-      // Lade Streak
-      const userStreak = await getCurrentStreak(storedUserId);
-      setStreak(userStreak);
-    }
 
     // Fetch products from Supabase
     try {
@@ -111,19 +96,6 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.headerLeft}>
           <Text style={styles.greeting}>Hallo, {userName}! 👋</Text>
           
-          {/* Lose-Anzeige */}
-          <View style={styles.losesDisplay}>
-            <Text style={styles.losesText}>
-              🎟️ {weeklyLoses?.total_loses || 0} {(weeklyLoses?.total_loses || 0) === 1 ? 'Los' : 'Lose'} diese Woche
-            </Text>
-          </View>
-
-          {/* Streak Badge */}
-          {streak && streak.current_streak > 0 && (
-            <View style={styles.streakContainer}>
-              <StreakBadge streak={streak} showProtection={false} />
-            </View>
-          )}
         </View>
         
         <TouchableOpacity 
@@ -227,17 +199,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.white,
     marginBottom: theme.spacing.sm,
-  },
-  losesDisplay: {
-    marginBottom: theme.spacing.sm,
-  },
-  losesText: {
-    fontSize: 14,
-    color: theme.colors.white,
-    opacity: 0.9,
-  },
-  streakContainer: {
-    marginTop: theme.spacing.xs,
   },
   logoutButton: {
     backgroundColor: theme.colors.white,

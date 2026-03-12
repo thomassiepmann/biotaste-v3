@@ -5,10 +5,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { theme } from '../constants/theme';
 import StarRating from '../components/StarRating';
 import EmojiPicker from '../components/EmojiPicker';
-import LosesAnimation from '../components/LosesAnimation';
 import { Product, Charge } from '../types';
-import { awardLoses } from '../services/lotteryService';
-import { updateStreak } from '../services/streakService';
 
 const CATEGORY_EMOJIS: { [key: string]: string } = {
   'Obst': '🍎',
@@ -48,8 +45,6 @@ export default function RatingScreen({ route, navigation }: any) {
   const [textureEmoji, setTextureEmoji] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
-  const [showLosesAnimation, setShowLosesAnimation] = useState(false);
-  const [losesEarned, setLosesEarned] = useState(0);
 
   useEffect(() => {
     AsyncStorage.getItem('userId').then(id => setUserId(id));
@@ -106,9 +101,6 @@ export default function RatingScreen({ route, navigation }: any) {
     }
 
     try {
-      const hasComment = comment.trim().length > 0;
-      const hasPhoto = false; // TODO: Foto-Upload implementieren
-
       // 1. Speichere Bewertung in Supabase
       const { error: ratingError } = await supabase
         .from('ratings')
@@ -130,35 +122,16 @@ export default function RatingScreen({ route, navigation }: any) {
         Alert.alert('Fehler', 'Bewertung konnte nicht gespeichert werden.');
         return;
       }
-
-      // 2. Vergebe Lose
-      const losesResult = await awardLoses(userId, hasComment, hasPhoto);
-      
-      if (!losesResult.success) {
-        Alert.alert('Info', losesResult.message);
-        navigation.goBack();
-        return;
-      }
-
-      // 3. Update Streak
-      const streakResult = await updateStreak(userId);
-
-      // 4. Zeige Feedback
-      const totalLoses = losesResult.losesAwarded + streakResult.bonusLoses;
-      setLosesEarned(totalLoses);
-      setShowLosesAnimation(true);
-
-      // Zeige zusätzliche Streak-Info
-      if (streakResult.bonusLoses > 0) {
-        setTimeout(() => {
-          Alert.alert('🔥 Streak-Bonus!', streakResult.message);
-        }, 2000);
-      }
-
-      // Nach Animation zurück navigieren
-      setTimeout(() => {
-        navigation.goBack();
-      }, 2500);
+      Alert.alert(
+        'Bewertung gespeichert!',
+        'Du nimmst an der wöchentlichen Verlosung teil! 🎉',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
     } catch (error) {
       console.error('Error submitting rating:', error);
       Alert.alert('Fehler', 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
@@ -324,13 +297,6 @@ export default function RatingScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Loses Animation */}
-      {showLosesAnimation && (
-        <LosesAnimation
-          losesEarned={losesEarned}
-          onComplete={() => setShowLosesAnimation(false)}
-        />
-      )}
     </View>
   );
 }

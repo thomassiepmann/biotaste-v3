@@ -8,7 +8,7 @@ import LoadingScreen from './src/components/LoadingScreen';
 import NameInputScreen from './src/screens/NameInputScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import RatingScreen from './src/screens/RatingScreen';
-import RewardsScreen from './src/screens/RewardsScreen';
+import VerlosungsScreen from './src/screens/VerlosungsScreen';
 import DeveloperScreen from './src/screens/DeveloperScreen';
 
 const Stack = createStackNavigator();
@@ -33,11 +33,11 @@ function MainTabs() {
         }}
       />
       <Tab.Screen 
-        name="Rewards" 
-        component={RewardsScreen}
+        name="Verlosung" 
+        component={VerlosungsScreen}
         options={{ 
-          tabBarLabel: 'Belohnungen', 
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎁</Text> 
+          tabBarLabel: 'Verlosung', 
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎉</Text> 
         }}
       />
       <Tab.Screen

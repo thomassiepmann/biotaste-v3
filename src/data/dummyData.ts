@@ -1,4 +1,4 @@
-as hast import { Charge } from '../types';
+import { Charge } from '../types';
 
 export const DUMMY_CHARGES: Charge[] = [
   { id: '1', product_id: '1', charge_code: 'ERD-2026-11', delivery_date: '2026-03-10' },

@@ -11,7 +11,7 @@ export interface Product {
   category: string;
   supplier?: string;
   image_url?: string;
-  is_active?: boolean;
+  active?: boolean;
   created_at?: string;
 }
 

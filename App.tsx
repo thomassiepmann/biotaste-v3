@@ -9,7 +9,6 @@ import NameInputScreen from './src/screens/NameInputScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import RatingScreen from './src/screens/RatingScreen';
 import VerlosungsScreen from './src/screens/VerlosungsScreen';
-import DeveloperScreen from './src/screens/DeveloperScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,28 +23,20 @@ function MainTabs() {
         headerShown: false,
       }}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreen}
-        options={{ 
-          tabBarLabel: 'Verkosten', 
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🍽️</Text> 
-        }}
-      />
-      <Tab.Screen 
-        name="Verlosung" 
-        component={VerlosungsScreen}
-        options={{ 
-          tabBarLabel: 'Verlosung', 
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎉</Text> 
+        options={{
+          tabBarLabel: 'Verkosten',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🍽️</Text>
         }}
       />
       <Tab.Screen
-        name="Developer"
-        component={DeveloperScreen}
+        name="Verlosung"
+        component={VerlosungsScreen}
         options={{
-          tabBarLabel: 'Developer',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🛠️</Text>
+          tabBarLabel: 'Verlosung',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎉</Text>
         }}
       />
     </Tab.Navigator>

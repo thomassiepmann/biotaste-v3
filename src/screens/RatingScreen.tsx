@@ -35,7 +35,7 @@ const EMOJI_TAGS = {
 };
 
 export default function RatingScreen({ route, navigation }: any) {
-  const { charge, product }: { charge: Charge; product: Product } = route.params;
+  const { charge, product } = route.params as { charge?: Charge; product: Product };
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
 
@@ -106,7 +106,7 @@ export default function RatingScreen({ route, navigation }: any) {
         .from('ratings')
         .insert({
           user_id: userId,
-          charge_id: charge.id,
+          charge_id: charge?.id || null,
           product_id: product.id,
           overall_stars: overallStars,
           taste_emoji: tasteEmoji,
@@ -161,7 +161,7 @@ export default function RatingScreen({ route, navigation }: any) {
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productSupplier}>{product.supplier || 'Bio-Lieferant'}</Text>
           <Text style={styles.productCharge}>
-            {charge.charge_code} • {new Date(charge.delivery_date).toLocaleDateString('de-DE')}
+            {charge ? `${charge.charge_code} • ${new Date(charge.delivery_date).toLocaleDateString('de-DE')}` : product.supplier || 'Aktuell verfügbar'}
           </Text>
         </View>
 

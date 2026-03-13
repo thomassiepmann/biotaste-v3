@@ -36,8 +36,9 @@ export default function NameInputScreen({ navigation }: any) {
       setIsSearching(true);
 
       const { data, error } = await supabase
-        .from('app_users')
+        .from('employees')
         .select('id, name')
+        .eq('active', true)
         .ilike('name', `${searchTerm}%`)
         .order('name', { ascending: true })
         .limit(5);
@@ -104,8 +105,9 @@ export default function NameInputScreen({ navigation }: any) {
       if (!resolvedUser) {
         // 1) Prefix-Suche und dann exakten Match bevorzugen
         const { data: prefixData, error: prefixError } = await supabase
-          .from('app_users')
+          .from('employees')
           .select('id, name')
+          .eq('active', true)
           .ilike('name', `${normalizedName}%`)
           .order('name', { ascending: true })
           .limit(20);

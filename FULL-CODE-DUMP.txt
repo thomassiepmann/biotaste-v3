@@ -1,0 +1,4864 @@
+============================================
+BIOTASTE COMPLETE CODE DUMP - Fri Mar 13 11:43:38 UTC 2026
+============================================
+
+######## NOTE: biotaste-admin ########
+biotaste-admin directory not found in this environment.
+
+######## FILE: biotaste-v3/package.json ########
+{
+  "name": "biotaste-v3",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "weekly-draw": "node scripts/weekly-draw.mjs"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.28.6",
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-masked-view/masked-view": "0.3.2",
+    "@react-navigation/bottom-tabs": "^7.15.2",
+    "@react-navigation/native": "^7.1.31",
+    "@react-navigation/stack": "^7.8.2",
+    "@supabase/supabase-js": "^2.38.5",
+    "expo": "~54.0.0",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-get-random-values": "1.11.0",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.16.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
+  },
+  "private": true,
+  "overrides": {
+    "react-native-get-random-values": "1.11.0"
+  }
+}
+
+######## FILE: biotaste-v3/.env ########
+# ============================================
+# Supabase Konfiguration
+# ============================================
+
+# Supabase Project URL
+EXPO_PUBLIC_SUPABASE_URL=https://raqvtzzzvhvhyfwyqokm.supabase.co
+
+# Supabase Anon/Public Key
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_qjetrto35ZSseI8j9-hmmA_4tTL2BB4
+
+# ============================================
+# Wichtige Hinweise:
+# ============================================
+# 1. Diese Datei ist in .gitignore und wird NICHT committed
+# 2. Für Production: Verwende Expo Secrets oder Environment Variables
+# 3. Konfiguriert am: 28.02.2026
+
+######## FILE: biotaste-v3/supabase/schema.sql ########
+-- BioTaste Database Schema
+
+-- Users Table
+CREATE TABLE users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  pin TEXT,
+  points INTEGER DEFAULT 0,
+  streak_days INTEGER DEFAULT 0,
+  last_rating_date DATE,
+  role TEXT DEFAULT 'employee',
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Products Table
+CREATE TABLE IF NOT EXISTS products (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  price NUMERIC NOT NULL,
+  category TEXT,
+  supplier TEXT,
+  image_url TEXT,
+  is_available BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Row Level Security (RLS) Policy for public read access
+CREATE POLICY "Allow public read access" ON products
+  FOR SELECT
+  USING (true);
+
+-- Charges Table
+CREATE TABLE charges (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  product_id UUID REFERENCES products(id),
+  charge_code TEXT NOT NULL,
+  delivery_date DATE NOT NULL,
+  supplier_batch TEXT,
+  qr_code TEXT UNIQUE,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Ratings Table
+CREATE TABLE ratings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  charge_id UUID REFERENCES charges(id),
+  overall_stars INTEGER CHECK (overall_stars BETWEEN 1 AND 5),
+  taste_emoji TEXT,
+  optic_emoji TEXT,
+  texture_emoji TEXT,
+  comment TEXT,
+  photo_url TEXT,
+  points_earned INTEGER DEFAULT 15,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, charge_id)
+);
+
+-- Rewards Table
+CREATE TABLE rewards (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  points_cost INTEGER NOT NULL,
+  description TEXT,
+  icon TEXT,
+  active BOOLEAN DEFAULT true
+);
+
+-- Product Averages View
+CREATE VIEW product_averages AS
+SELECT 
+  p.id as product_id,
+  p.name as product_name,
+  p.category,
+  p.supplier,
+  c.id as charge_id,
+  c.charge_code,
+  c.delivery_date,
+  COUNT(r.id) as rating_count,
+  ROUND(AVG(r.overall_stars), 1) as avg_stars,
+  CASE 
+    WHEN AVG(r.overall_stars) >= 4.0 THEN 'green'
+    WHEN AVG(r.overall_stars) >= 2.5 THEN 'yellow'
+    ELSE 'red'
+  END as ampel_status
+FROM products p
+JOIN charges c ON c.product_id = p.id
+LEFT JOIN ratings r ON r.charge_id = c.id
+WHERE p.active = true AND c.active = true
+GROUP BY p.id, p.name, p.category, p.supplier, c.id, c.charge_code, c.delivery_date;
+
+-- Insert Sample Data
+
+-- Users
+INSERT INTO users (name, pin, role) VALUES
+  ('Anna', '1234', 'admin'),
+  ('Ben', '2345', 'employee'),
+  ('Clara', '3456', 'employee'),
+  ('David', '4567', 'employee');
+
+-- Products
+INSERT INTO products (name, category, supplier) VALUES
+  ('Bio-Äpfel Gala', 'Obst', 'Obsthof Müller'),
+  ('Rispentomaten', 'Gemüse', 'BioGärtnerei Schmidt'),
+  ('Basilikum', 'Kräuter', 'Kräuterhof Weber');
+
+-- Rewards
+INSERT INTO rewards (name, points_cost, description, icon) VALUES
+  ('Bio-Kaffee', 300, 'Ein leckerer Bio-Kaffee', '☕'),
+  ('Bio-Snack', 800, 'Snack deiner Wahl', '🍎'),
+  ('Bio-Tasche', 1500, 'Stylische Bio-Tragetasche', '👜'),
+  ('Extra-Urlaubstag', 5000, 'Ein freier Tag extra!', '🌟');
+
+######## FILE: biotaste-v3/supabase/app_users_schema.sql ########
+-- ============================================
+-- Supabase Schema für App Users (Registrierte Nutzer)
+-- ============================================
+-- Datum: 2026-02-28
+-- Projekt: biotaste-v3
+-- Feature: Nur registrierte User dürfen die App nutzen
+
+-- Erstelle app_users Tabelle
+CREATE TABLE IF NOT EXISTS app_users (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text UNIQUE NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+-- Index für schnelle Name-Suche (case-insensitive)
+CREATE INDEX IF NOT EXISTS idx_app_users_name_lower ON app_users (LOWER(name));
+
+-- Kommentar für Dokumentation
+COMMENT ON TABLE app_users IS 'Registrierte App-Nutzer - nur diese Namen dürfen sich einloggen';
+COMMENT ON COLUMN app_users.name IS 'Vollständiger Name des Users (case-insensitive beim Login)';
+
+-- ============================================
+-- Beispiel-Daten (für Testing)
+-- ============================================
+INSERT INTO app_users (name) VALUES 
+  ('Max Mustermann'),
+  ('Anna Schmidt'),
+  ('Tom Weber'),
+  ('Lisa Müller'),
+  ('Peter Klein')
+ON CONFLICT (name) DO NOTHING;
+
+-- ============================================
+-- Row Level Security (RLS) - Optional
+-- ============================================
+-- Aktiviere RLS für zusätzliche Sicherheit
+ALTER TABLE app_users ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Jeder kann Namen lesen (für Login-Validierung)
+CREATE POLICY "Allow public read access" ON app_users
+  FOR SELECT
+  USING (true);
+
+-- Policy: Nur Admins können Namen hinzufügen/ändern
+-- (Später kann hier eine Admin-Rolle definiert werden)
+CREATE POLICY "Only admins can insert" ON app_users
+  FOR INSERT
+  WITH CHECK (false); -- Vorerst blockiert, Admin muss direkt in DB arbeiten
+
+CREATE POLICY "Only admins can update" ON app_users
+  FOR UPDATE
+  USING (false);
+
+CREATE POLICY "Only admins can delete" ON app_users
+  FOR DELETE
+  USING (false);
+
+######## FILE: biotaste-v3/supabase/products_schema.sql ########
+-- ============================================
+-- Supabase Schema for Products Table
+-- ============================================
+-- Creates the products table with fields:
+--   - id (UUID): Primary key
+--   - name (TEXT): Product name
+--   - category (TEXT): Product category
+--   - image_url (TEXT): URL to product image
+--   - is_active (BOOLEAN): Whether the product is active
+--   - created_at (TIMESTAMPTZ): Creation timestamp
+-- ============================================
+
+-- Create products table
+CREATE TABLE IF NOT EXISTS products (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT,
+  image_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for faster queries on active products
+CREATE INDEX IF NOT EXISTS idx_products_is_active ON products (is_active);
+
+-- Index for category filtering
+CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);
+
+-- Comments for documentation
+COMMENT ON TABLE products IS 'Product catalog for BioTaste app';
+COMMENT ON COLUMN products.id IS 'Unique identifier (UUID)';
+COMMENT ON COLUMN products.name IS 'Product name';
+COMMENT ON COLUMN products.category IS 'Product category (e.g., Obst, Gemüse, Kräuter)';
+COMMENT ON COLUMN products.image_url IS 'URL to product image';
+COMMENT ON COLUMN products.is_active IS 'Whether the product is currently active/available';
+COMMENT ON COLUMN products.created_at IS 'Timestamp when the product was created';
+
+-- ============================================
+-- Sample Data (matching existing dummy data)
+-- ============================================
+INSERT INTO products (id, name, category, image_url, is_active) VALUES
+  ('550e8400-e29b-41d4-a716-446655440001', 'Bio-Äpfel Gala', 'Obst', NULL, true),
+  ('550e8400-e29b-41d4-a716-446655440002', 'Rispentomaten', 'Gemüse', NULL, true),
+  ('550e8400-e29b-41d4-a716-446655440003', 'Basilikum', 'Kräuter', NULL, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- Row Level Security (RLS)
+-- ============================================
+-- Enable RLS for security
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Anyone can read active products
+CREATE POLICY "Allow public read access to active products" ON products
+  FOR SELECT
+  USING (is_active = true);
+
+-- Policy: Only admins can insert/update/delete (blocked by default)
+CREATE POLICY "Only admins can insert products" ON products
+  FOR INSERT
+  WITH CHECK (false);
+
+CREATE POLICY "Only admins can update products" ON products
+  FOR UPDATE
+  USING (false);
+
+CREATE POLICY "Only admins can delete products" ON products
+  FOR DELETE
+  USING (false);
+######## FILE: biotaste-v3/supabase/products_seed.sql ########
+-- ============================================
+-- Supabase Seed File for Products
+-- ============================================
+-- Datum: 2026-03-08
+-- Projekt: biotaste-v3
+-- Feature: 10 Bio/Organic Products in German
+
+-- ============================================
+-- 10 Sample Organic/Bio Products (German)
+-- ============================================
+INSERT INTO products (name, description, price, category, supplier, image_url, is_available) VALUES
+  ('Bio-Äpfel Gala', 'Süße, knackige Bio-Äpfel aus regionaler Erzeugung. Perfekt für den täglichen Vitamin-Bedarf.', 3.49, 'Obst', 'Obsthof Müller', 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400', true),
+  ('Rispentomaten Bio', 'Saftige, sonnengereifte Bio-Tomaten am Strauch. Intensive Aromen für Salate und Gerichte.', 2.99, 'Gemüse', 'BioGärtnerei Schmidt', 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400', true),
+  ('Bio-Basilikum Topf', 'Frisches, aromatisches Bio-Basilikum im Topf. Ideal für Pesto, Salate und mediterrane Küche.', 2.49, 'Kräuter', 'Kräuterhof Weber', 'https://images.unsplash.com/photo-1618375569909-3c8616cf7733?w=400', true),
+  ('Bio-Karotten Bund', 'Knackige, süße Bio-Möhren mit Grün. Reich an Beta-Carotin und perfekt für Suppen und Snacks.', 1.99, 'Gemüse', 'Gemüsehof Bauer', 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400', true),
+  ('Bio-Bananen', 'Cremige, süße Bio-Bananen aus fairem Handel. Energiegeladene Früchte für zwischendurch.', 1.79, 'Obst', 'Tropenimport FairTrade', 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400', true),
+  ('Bio-Petersilie glatt', 'Frische, glatte Bio-Petersilie mit intensivem Geschmack. Unverzichtbar in der deutschen Küche.', 1.29, 'Kräuter', 'Kräuterhof Weber', 'https://images.unsplash.com/photo-1623428067635-4a5a83945cec?w=400', true),
+  ('Bio-Gurke', 'Erfrischende, knackige Bio-Gurke ohne Wachsschicht. Perfekt für Salate und als gesunder Snack.', 1.49, 'Gemüse', 'Gewächshaus Hoffmann', 'https://images.unsplash.com/photo-1449300079323-02e209d9d3a6?w=400', true),
+  ('Bio-Orangen', 'Saftige, vitaminreiche Bio-Orangen mit süß-säuerlichem Geschmack. Ideal für frisch gepressten Saft.', 2.99, 'Obst', 'Zitrusgarten Spanien', 'https://images.unsplash.com/photo-1547514701-42782101795e?w=400', true),
+  ('Bio-Schnittlauch', 'Fein-würziger Bio-Schnittlauch, geerntet am Morgen. Perfekt für Quark, Eier und Salate.', 1.19, 'Kräuter', 'Kräuterhof Weber', 'https://images.unsplash.com/photo-1623428067635-4a5a83945cec?w=400', true),
+  ('Bio-Paprika rot', 'Fleischige, süße Bio-Paprika in leuchtendem Rot. Vielseitig einsetzbar für Salate und Gemüsepfannen.', 1.89, 'Gemüse', 'BioGärtnerei Schmidt', 'https://images.unsplash.com/photo-1563565375-f3fdf5d66970?w=400', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- Row Level Security (RLS) - Enable and Policy
+-- ============================================
+-- Enable RLS on products table
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Allow public read access
+CREATE POLICY IF NOT EXISTS "Allow public read access" ON products
+  FOR SELECT
+  USING (true);
+
+-- Policy: Only admins can modify products
+CREATE POLICY IF NOT EXISTS "Only admins can insert" ON products
+  FOR INSERT
+  WITH CHECK (false);
+
+CREATE POLICY IF NOT EXISTS "Only admins can update" ON products
+  FOR UPDATE
+  USING (false);
+
+CREATE POLICY IF NOT EXISTS "Only admins can delete" ON products
+  FOR DELETE
+  USING (false);
+
+######## FILE: biotaste-v3/supabase/ratings_schema_update.sql ########
+-- ============================================
+-- Supabase Schema Update für Emoji-Tags & Kommentare
+-- ============================================
+-- Datum: 2026-02-28
+-- Projekt: biotaste-v3
+-- Feature: Emoji-Tags + Kommentarfeld im RatingScreen
+
+-- Erweitere die ratings Tabelle um neue Felder
+ALTER TABLE ratings 
+ADD COLUMN IF NOT EXISTS emoji_tags text[], -- Array der gewählten Tag-IDs
+ADD COLUMN IF NOT EXISTS comment text; -- Kommentar-Text (max. 150 Zeichen)
+
+-- Beispiel-Daten:
+-- emoji_tags: ['suess', 'frisch', 'top_qualitaet']
+-- comment: 'Sehr leckere Äpfel, perfekt reif!'
+
+-- Index für bessere Performance bei Tag-Suchen
+CREATE INDEX IF NOT EXISTS idx_ratings_emoji_tags ON ratings USING GIN (emoji_tags);
+
+-- Kommentar für Dokumentation
+COMMENT ON COLUMN ratings.emoji_tags IS 'Array von Tag-IDs aus den Kategorien: Geschmack, Zustand, Besonders';
+COMMENT ON COLUMN ratings.comment IS 'Optionaler Kommentar des Users (max. 150 Zeichen)';
+
+-- ============================================
+-- Verfügbare Tag-IDs:
+-- ============================================
+-- Geschmack: suess, sauer, salzig, waessrig, aromatisch
+-- Zustand: frisch, ueberreif, noch_nicht_reif, matschig
+-- Besonders: top_qualitaet, enttaeuschend, schaedling
+
+######## FILE: biotaste-v3/supabase/lottery_system_schema.sql ########
+-- ============================================
+-- LOTTERIE/LOS-SYSTEM FÜR BIOTASTE APP
+-- Ersetzt das alte Punkte-System
+-- ============================================
+
+-- Tabelle: Wöchentliche Lose pro User
+CREATE TABLE IF NOT EXISTS loses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  week_start DATE NOT NULL, -- Montag der jeweiligen Woche
+  total_loses INTEGER DEFAULT 0,
+  bonus_loses INTEGER DEFAULT 0,
+  streak_loses INTEGER DEFAULT 0,
+  daily_count INTEGER DEFAULT 0, -- Anzahl Bewertungen heute
+  last_rating_date DATE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, week_start)
+);
+
+-- Tabelle: Streak-Tracking
+CREATE TABLE IF NOT EXISTS streaks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  current_streak INTEGER DEFAULT 0,
+  longest_streak INTEGER DEFAULT 0,
+  last_rating_date DATE,
+  streak_protection_used BOOLEAN DEFAULT FALSE,
+  protection_reset_month INTEGER, -- Monatsnummer (1-12)
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Tabelle: Gewinner
+CREATE TABLE IF NOT EXISTS winners (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  week_start DATE NOT NULL,
+  winner_type TEXT CHECK (winner_type IN ('random_1', 'random_2', 'random_3', 'quality')),
+  prize TEXT,
+  is_anonymous BOOLEAN DEFAULT FALSE,
+  reward_claimed BOOLEAN DEFAULT FALSE,
+  reward_qr_code TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Tabelle: User Einstellungen
+CREATE TABLE IF NOT EXISTS user_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  is_anonymous BOOLEAN DEFAULT FALSE,
+  display_name TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================
+
+ALTER TABLE loses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE streaks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE winners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+
+-- Policies für loses
+DROP POLICY IF EXISTS "User sieht eigene Lose" ON loses;
+CREATE POLICY "User sieht eigene Lose" ON loses 
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "User updated eigene Lose" ON loses;
+CREATE POLICY "User updated eigene Lose" ON loses 
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Policies für streaks
+DROP POLICY IF EXISTS "User sieht eigenen Streak" ON streaks;
+CREATE POLICY "User sieht eigenen Streak" ON streaks 
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "User updated eigenen Streak" ON streaks;
+CREATE POLICY "User updated eigenen Streak" ON streaks 
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Policies für winners
+DROP POLICY IF EXISTS "Alle sehen Gewinner" ON winners;
+CREATE POLICY "Alle sehen Gewinner" ON winners 
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin erstellt Gewinner" ON winners;
+CREATE POLICY "Admin erstellt Gewinner" ON winners 
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM app_users 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Policies für user_settings
+DROP POLICY IF EXISTS "User sieht eigene Settings" ON user_settings;
+CREATE POLICY "User sieht eigene Settings" ON user_settings 
+  FOR ALL USING (auth.uid() = user_id);
+
+-- ============================================
+-- INDIZES FÜR PERFORMANCE
+-- ============================================
+
+CREATE INDEX IF NOT EXISTS idx_loses_user_week ON loses(user_id, week_start);
+CREATE INDEX IF NOT EXISTS idx_loses_week ON loses(week_start);
+CREATE INDEX IF NOT EXISTS idx_streaks_user ON streaks(user_id);
+CREATE INDEX IF NOT EXISTS idx_winners_week ON winners(week_start);
+CREATE INDEX IF NOT EXISTS idx_winners_user ON winners(user_id);
+
+-- ============================================
+-- FUNKTIONEN
+-- ============================================
+
+-- Funktion: Aktuellen Wochenstart (Montag) berechnen
+CREATE OR REPLACE FUNCTION get_current_week_start()
+RETURNS DATE AS $$
+BEGIN
+  RETURN DATE_TRUNC('week', CURRENT_DATE)::DATE + 
+         CASE WHEN EXTRACT(DOW FROM CURRENT_DATE) = 0 THEN -6 ELSE 1 END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Funktion: Updated_at automatisch aktualisieren
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger für updated_at
+DROP TRIGGER IF EXISTS update_loses_updated_at ON loses;
+CREATE TRIGGER update_loses_updated_at
+  BEFORE UPDATE ON loses
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_streaks_updated_at ON streaks;
+CREATE TRIGGER update_streaks_updated_at
+  BEFORE UPDATE ON streaks
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_user_settings_updated_at ON user_settings;
+CREATE TRIGGER update_user_settings_updated_at
+  BEFORE UPDATE ON user_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- KOMMENTARE
+-- ============================================
+
+COMMENT ON TABLE loses IS 'Wöchentliche Lose pro User für Lotterie-System';
+COMMENT ON TABLE streaks IS 'Streak-Tracking mit monatlichem Schutz';
+COMMENT ON TABLE winners IS 'Gewinner der wöchentlichen Ziehung';
+COMMENT ON TABLE user_settings IS 'User-Einstellungen inkl. Anonym-Option';
+
+COMMENT ON COLUMN loses.week_start IS 'Montag der Woche (ISO 8601)';
+COMMENT ON COLUMN loses.daily_count IS 'Anzahl Bewertungen heute (max 3)';
+COMMENT ON COLUMN streaks.protection_reset_month IS 'Monat des letzten Schutz-Resets (1-12)';
+COMMENT ON COLUMN winners.winner_type IS 'Art des Gewinns: random_1/2/3 oder quality';
+
+######## FILE: biotaste-v3 - ALL .ts/.tsx files ########
+
+######## FILE: /sandbox/repo/App.tsx ########
+import React, { useState, useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import LoadingScreen from './src/components/LoadingScreen';
+import NameInputScreen from './src/screens/NameInputScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import RatingScreen from './src/screens/RatingScreen';
+import VerlosungsScreen from './src/screens/VerlosungsScreen';
+import DeveloperScreen from './src/screens/DeveloperScreen';
+
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#2D7A3A',
+        tabBarInactiveTintColor: '#8E8E93',
+        tabBarStyle: { backgroundColor: '#fff', borderTopColor: '#E5E5EA' },
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{ 
+          tabBarLabel: 'Verkosten', 
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🍽️</Text> 
+        }}
+      />
+      <Tab.Screen 
+        name="Verlosung" 
+        component={VerlosungsScreen}
+        options={{ 
+          tabBarLabel: 'Verlosung', 
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎉</Text> 
+        }}
+      />
+      <Tab.Screen
+        name="Developer"
+        component={DeveloperScreen}
+        options={{
+          tabBarLabel: 'Developer',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🛠️</Text>
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+export default function App() {
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        const name = await AsyncStorage.getItem('userName');
+        setInitialRoute(name ? 'MainTabs' : 'NameInput');
+      } catch (e) {
+        console.error('Bootstrap error:', e);
+        setInitialRoute('NameInput');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    bootstrap();
+  }, []);
+
+  return (
+    <NavigationContainer>
+      {isLoading ? (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Loading" component={LoadingScreen} />
+        </Stack.Navigator>
+      ) : (
+        <Stack.Navigator 
+          initialRouteName={initialRoute || 'NameInput'}
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="NameInput" component={NameInputScreen} />
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen name="Rating" component={RatingScreen} />
+        </Stack.Navigator>
+      )}
+    </NavigationContainer>
+  );
+}
+
+######## FILE: /sandbox/repo/index.ts ########
+import { registerRootComponent } from 'expo';
+
+import App from './App';
+
+// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
+// It also ensures that whether you load the app in Expo Go or in a native build,
+// the environment is set up appropriately
+registerRootComponent(App);
+
+######## FILE: /sandbox/repo/src/_legacy/LosesAnimation.tsx ########
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { theme } from '../constants/theme';
+
+interface LosesAnimationProps {
+  losesEarned: number;
+  onComplete?: () => void;
+}
+
+export default function LosesAnimation({ losesEarned, onComplete }: LosesAnimationProps) {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Animations-Sequenz
+    Animated.sequence([
+      // Einblenden und Skalieren
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Kurz halten
+      Animated.delay(1500),
+      // Ausblenden
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1.2,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      if (onComplete) onComplete();
+    });
+  }, [losesEarned]);
+
+  return (
+    <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.animationBox,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { scale: scaleAnim },
+              { translateY: slideAnim },
+            ],
+          },
+        ]}
+      >
+        <Text style={styles.ticketEmoji}>🎟️</Text>
+        <Text style={styles.losesText}>
+          +{losesEarned} {losesEarned === 1 ? 'Los' : 'Lose'}
+        </Text>
+        <Text style={styles.subText}>gesammelt!</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
+  },
+  animationBox: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    minWidth: 200,
+  },
+  ticketEmoji: {
+    fontSize: 64,
+    marginBottom: theme.spacing.md,
+  },
+  losesText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+    marginBottom: theme.spacing.xs,
+  },
+  subText: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+  },
+});
+
+######## FILE: /sandbox/repo/src/_legacy/LotteryScreen.tsx ########
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { theme } from '../constants/theme';
+import { WeeklyLoses, Streak, Winner } from '../types';
+import { getCurrentWeekLoses, getDaysUntilNextDraw } from '../services/lotteryService';
+import { getCurrentStreak } from '../services/streakService';
+import { getCurrentWeekWinners, hasUserWonThisWeek } from '../services/winnerService';
+import StreakBadge from '../components/StreakBadge';
+import WinnerCard from '../components/WinnerCard';
+
+export default function LotteryScreen() {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [weeklyLoses, setWeeklyLoses] = useState<WeeklyLoses | null>(null);
+  const [streak, setStreak] = useState<Streak | null>(null);
+  const [winners, setWinners] = useState<Winner[]>([]);
+  const [hasWon, setHasWon] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const daysUntilDraw = getDaysUntilNextDraw();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      const storedUserName = await AsyncStorage.getItem('userName');
+      
+      setUserId(storedUserId);
+      setUserName(storedUserName);
+
+      if (storedUserId) {
+        // Lade Lose
+        const loses = await getCurrentWeekLoses(storedUserId);
+        setWeeklyLoses(loses);
+
+        // Lade Streak
+        const userStreak = await getCurrentStreak(storedUserId);
+        setStreak(userStreak);
+
+        // Lade Gewinner
+        const weekWinners = await getCurrentWeekWinners();
+        setWinners(weekWinners);
+
+        // Prüfe ob User gewonnen hat
+        const won = await hasUserWonThisWeek(storedUserId);
+        setHasWon(won);
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Daten:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  const totalLoses = weeklyLoses?.total_loses || 0;
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Hallo, {userName}! 🎟️</Text>
+        
+        {/* Lose-Anzeige */}
+        <View style={styles.losesDisplay}>
+          <Text style={styles.losesEmoji}>🎟️</Text>
+          <Text style={styles.losesAmount}>{totalLoses}</Text>
+          <Text style={styles.losesLabel}>
+            {totalLoses === 1 ? 'Los' : 'Lose'} diese Woche
+          </Text>
+        </View>
+
+        {/* Streak Badge */}
+        {streak && (
+          <View style={styles.streakContainer}>
+            <StreakBadge streak={streak} />
+          </View>
+        )}
+
+        {/* Countdown */}
+        <View style={styles.countdownBox}>
+          <Text style={styles.countdownLabel}>Nächste Ziehung in:</Text>
+          <Text style={styles.countdownDays}>
+            {daysUntilDraw} {daysUntilDraw === 1 ? 'Tag' : 'Tagen'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Content */}
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Gewinner-Section */}
+        {hasWon && (
+          <View style={styles.winnerAlert}>
+            <Text style={styles.winnerAlertEmoji}>🎉</Text>
+            <Text style={styles.winnerAlertText}>
+              Glückwunsch! Du hast diese Woche gewonnen!
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏆 Gewinner dieser Woche</Text>
+          {winners.length > 0 ? (
+            winners.map((winner) => (
+              <WinnerCard
+                key={winner.id}
+                winner={winner}
+                isCurrentUser={winner.user_id === userId}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                Die Ziehung findet jeden Montag statt.
+              </Text>
+              <Text style={styles.emptyStateSubtext}>
+                Sammle Lose durch Bewertungen! 🎟️
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Regeln-Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💡 Wie sammle ich Lose?</Text>
+
+          <View style={styles.ruleCard}>
+            <Text style={styles.ruleEmoji}>⚖️</Text>
+            <View style={styles.ruleContent}>
+              <Text style={styles.ruleTitle}>Fairer Modus aktiv</Text>
+              <Text style={styles.ruleText}>
+                Für die Wochenziehung gilt: 1 Teilnehmer = 1 Los.
+              </Text>
+              <Text style={styles.ruleText}>
+                Alle mit mindestens 1 Bewertung haben die gleiche Chance.
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.ruleCard}>
+            <Text style={styles.ruleEmoji}>🎟️</Text>
+            <View style={styles.ruleContent}>
+              <Text style={styles.ruleTitle}>Für Motivation im Alltag</Text>
+              <Text style={styles.ruleText}>• 1 Los = Basis-Bewertung</Text>
+              <Text style={styles.ruleText}>• +1 Los = Mit Kommentar</Text>
+              <Text style={styles.ruleText}>• +1 Los = Mit Foto</Text>
+              <Text style={styles.ruleLimit}>Hinweis: Diese Lose zählen für Feedback/Streaks</Text>
+            </View>
+          </View>
+
+          <View style={styles.ruleCard}>
+            <Text style={styles.ruleEmoji}>🔥</Text>
+            <View style={styles.ruleContent}>
+              <Text style={styles.ruleTitle}>Streak-Bonus</Text>
+              <Text style={styles.ruleText}>• 3 Tage → +1 Bonus-Los</Text>
+              <Text style={styles.ruleText}>• 7 Tage → +2 Bonus-Lose</Text>
+              <Text style={styles.ruleText}>• 14 Tage → +3 Bonus-Lose</Text>
+              <Text style={styles.ruleText}>• 30 Tage → +5 Bonus-Lose</Text>
+            </View>
+          </View>
+
+          <View style={styles.ruleCard}>
+            <Text style={styles.ruleEmoji}>🛡️</Text>
+            <View style={styles.ruleContent}>
+              <Text style={styles.ruleTitle}>Streak-Schutz</Text>
+              <Text style={styles.ruleText}>
+                1x pro Monat wird dein Streak automatisch geschützt, 
+                wenn du einen Tag vergisst.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Gewinnchancen */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎁 Preise</Text>
+          
+          <View style={styles.prizeCard}>
+            <Text style={styles.prizeIcon}>🥇</Text>
+            <Text style={styles.prizeName}>10€ Gutschein</Text>
+          </View>
+          
+          <View style={styles.prizeCard}>
+            <Text style={styles.prizeIcon}>🥈</Text>
+            <Text style={styles.prizeName}>5€ Gutschein</Text>
+          </View>
+          
+          <View style={styles.prizeCard}>
+            <Text style={styles.prizeIcon}>🥉</Text>
+            <Text style={styles.prizeName}>Überraschungsbox</Text>
+          </View>
+          
+          <View style={styles.prizeCard}>
+            <Text style={styles.prizeIcon}>⭐</Text>
+            <Text style={styles.prizeName}>Qualitäts-Preis</Text>
+            <Text style={styles.prizeSubtext}>Beste Bewertung der Woche</Text>
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.grayLight,
+  },
+  header: {
+    backgroundColor: theme.colors.primary,
+    paddingTop: 60,
+    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    marginBottom: theme.spacing.lg,
+  },
+  losesDisplay: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  losesEmoji: {
+    fontSize: 48,
+    marginBottom: theme.spacing.xs,
+  },
+  losesAmount: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  losesLabel: {
+    fontSize: 16,
+    color: theme.colors.white,
+    opacity: 0.9,
+  },
+  streakContainer: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  countdownBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  countdownLabel: {
+    fontSize: 14,
+    color: theme.colors.white,
+    marginBottom: 4,
+  },
+  countdownDays: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  content: {
+    flex: 1,
+  },
+  winnerAlert: {
+    backgroundColor: theme.colors.accent,
+    margin: theme.spacing.lg,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    alignItems: 'center',
+  },
+  winnerAlertEmoji: {
+    fontSize: 48,
+    marginBottom: theme.spacing.sm,
+  },
+  winnerAlertText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    textAlign: 'center',
+  },
+  section: {
+    padding: theme.spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+  },
+  emptyState: {
+    backgroundColor: theme.colors.white,
+    padding: theme.spacing.xl,
+    borderRadius: theme.borderRadius.lg,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  ruleCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    flexDirection: 'row',
+  },
+  ruleEmoji: {
+    fontSize: 32,
+    marginRight: theme.spacing.md,
+  },
+  ruleContent: {
+    flex: 1,
+  },
+  ruleTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  ruleText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 4,
+  },
+  ruleLimit: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    fontStyle: 'italic',
+    marginTop: theme.spacing.xs,
+  },
+  prizeCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  prizeIcon: {
+    fontSize: 32,
+    marginRight: theme.spacing.md,
+  },
+  prizeName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  prizeSubtext: {
+    fontSize: 12,
+    color: theme.colors.gray,
+  },
+  bottomSpacer: {
+    height: theme.spacing.xl,
+  },
+});
+
+######## FILE: /sandbox/repo/src/_legacy/RewardsScreen.tsx ########
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { theme } from '../constants/theme';
+import { DUMMY_REWARDS } from '../data/dummyData';
+import { Reward } from '../types';
+
+export default function RewardsScreen() {
+  const [userName, setUserName] = useState<string | null>(null);
+  const mockPoints = 0; // Mock-Punkte für Demo-Zwecke
+
+  useEffect(() => {
+    AsyncStorage.getItem('userName').then(name => setUserName(name));
+  }, []);
+
+  const getNextReward = (): Reward | null => {
+    const affordableRewards = DUMMY_REWARDS.filter(r => r.points_cost > mockPoints);
+    if (affordableRewards.length === 0) return null;
+    return affordableRewards.reduce((min, r) => r.points_cost < min.points_cost ? r : min);
+  };
+
+  const nextReward = getNextReward();
+  const progressPercentage = nextReward 
+    ? Math.min((mockPoints / nextReward.points_cost) * 100, 100)
+    : 100;
+
+  const handleRedeem = (reward: Reward) => {
+    if (mockPoints >= reward.points_cost) {
+      alert(`🎉 Glückwunsch! Du hast "${reward.name}" eingelöst!`);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Hallo, {userName}! 🎁</Text>
+        <View style={styles.pointsDisplay}>
+          <Text style={styles.pointsEmoji}>🌱</Text>
+          <Text style={styles.pointsAmount}>{mockPoints}</Text>
+          <Text style={styles.pointsLabel}>Punkte</Text>
+        </View>
+
+        {/* Progress Bar */}
+        {nextReward && (
+          <View style={styles.progressSection}>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { width: `${progressPercentage}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.progressText}>
+              Nächstes Ziel: {nextReward.name} ({nextReward.points_cost} Punkte)
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Rewards List */}
+      <ScrollView style={styles.content}>
+        <View style={styles.rewardsGrid}>
+          {DUMMY_REWARDS.map((reward) => {
+            const canAfford = mockPoints >= reward.points_cost;
+            const pointsNeeded = reward.points_cost - mockPoints;
+
+            return (
+              <View key={reward.id} style={styles.rewardCard}>
+                <View style={styles.rewardHeader}>
+                  <Text style={styles.rewardIcon}>{reward.icon}</Text>
+                  <View style={styles.rewardInfo}>
+                    <Text style={styles.rewardName}>{reward.name}</Text>
+                    <Text style={styles.rewardDescription}>{reward.description}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.rewardFooter}>
+                  <Text style={styles.rewardCost}>{reward.points_cost} Punkte</Text>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.redeemButton,
+                      !canAfford && styles.redeemButtonDisabled,
+                    ]}
+                    onPress={() => handleRedeem(reward)}
+                    disabled={!canAfford}
+                  >
+                    <Text style={[
+                      styles.redeemButtonText,
+                      !canAfford && styles.redeemButtonTextDisabled,
+                    ]}>
+                      {canAfford ? 'Einlösen' : `Noch ${pointsNeeded}`}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Info Section */}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoTitle}>💡 Wie sammle ich Punkte?</Text>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoBullet}>•</Text>
+            <Text style={styles.infoText}>15 Punkte für jede Bewertung</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoBullet}>•</Text>
+            <Text style={styles.infoText}>+5 Punkte für einen Kommentar</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoBullet}>•</Text>
+            <Text style={styles.infoText}>+10 Punkte für ein Foto</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoBullet}>•</Text>
+            <Text style={styles.infoText}>Bonus für tägliche Streaks!</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.grayLight,
+  },
+  header: {
+    backgroundColor: theme.colors.primary,
+    paddingTop: 60,
+    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    marginBottom: theme.spacing.lg,
+  },
+  pointsDisplay: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  pointsEmoji: {
+    fontSize: 48,
+    marginBottom: theme.spacing.xs,
+  },
+  pointsAmount: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  pointsLabel: {
+    fontSize: 16,
+    color: theme.colors.white,
+    opacity: 0.9,
+  },
+  progressSection: {
+    marginBottom: theme.spacing.md,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.sm,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.white,
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 13,
+    color: theme.colors.white,
+    textAlign: 'center',
+  },
+  streakInfo: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  streakText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.white,
+  },
+  content: {
+    flex: 1,
+  },
+  rewardsGrid: {
+    padding: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
+  rewardCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  rewardHeader: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.md,
+  },
+  rewardIcon: {
+    fontSize: 40,
+    marginRight: theme.spacing.md,
+  },
+  rewardInfo: {
+    flex: 1,
+  },
+  rewardName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  rewardDescription: {
+    fontSize: 14,
+    color: theme.colors.gray,
+  },
+  rewardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rewardCost: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  redeemButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.sm,
+  },
+  redeemButtonDisabled: {
+    backgroundColor: theme.colors.grayLight,
+  },
+  redeemButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.white,
+  },
+  redeemButtonTextDisabled: {
+    color: theme.colors.gray,
+  },
+  infoSection: {
+    backgroundColor: theme.colors.white,
+    margin: theme.spacing.lg,
+    marginTop: 0,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.sm,
+  },
+  infoBullet: {
+    fontSize: 14,
+    color: theme.colors.primary,
+    marginRight: theme.spacing.sm,
+    fontWeight: 'bold',
+  },
+  infoText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    flex: 1,
+  },
+});
+
+######## FILE: /sandbox/repo/src/_legacy/StreakBadge.tsx ########
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+import { Streak } from '../types';
+
+interface StreakBadgeProps {
+  streak: Streak;
+  showProtection?: boolean;
+}
+
+export default function StreakBadge({ streak, showProtection = true }: StreakBadgeProps) {
+  const { current_streak, streak_protection_used, protection_reset_month } = streak;
+  
+  // Bestimme Emoji basierend auf Streak-Länge
+  const getStreakEmoji = () => {
+    if (current_streak >= 30) return '🔥🔥🔥';
+    if (current_streak >= 14) return '🔥🔥';
+    if (current_streak >= 7) return '🔥';
+    if (current_streak >= 3) return '🔥';
+    return '⭐';
+  };
+
+  // Bestimme Farbe basierend auf Streak-Länge
+  const getStreakColor = () => {
+    if (current_streak >= 30) return '#ff4500'; // Orange-Red
+    if (current_streak >= 14) return '#ff6347'; // Tomato
+    if (current_streak >= 7) return '#ff8c00'; // Dark Orange
+    if (current_streak >= 3) return '#ffa500'; // Orange
+    return theme.colors.gray;
+  };
+
+  // Prüfe ob Schutz verfügbar ist
+  const currentMonth = new Date().getMonth() + 1;
+  const protectionAvailable = !streak_protection_used || protection_reset_month !== currentMonth;
+
+  if (current_streak === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.badge, styles.badgeInactive]}>
+          <Text style={styles.emojiInactive}>⭐</Text>
+          <Text style={styles.textInactive}>Starte deinen Streak!</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.badge, { borderColor: getStreakColor() }]}>
+        <Text style={styles.emoji}>{getStreakEmoji()}</Text>
+        <View style={styles.textContainer}>
+          <Text style={styles.streakNumber}>{current_streak}</Text>
+          <Text style={styles.streakLabel}>
+            {current_streak === 1 ? 'Tag' : 'Tage'} Streak
+          </Text>
+        </View>
+        
+        {showProtection && current_streak >= 3 && (
+          <View style={styles.protectionBadge}>
+            <Text style={styles.protectionText}>
+              {protectionAvailable ? '🛡️ Schutz' : '🛡️ Genutzt'}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Streak-Bonus Info */}
+      {current_streak >= 3 && (
+        <View style={styles.bonusInfo}>
+          <Text style={styles.bonusText}>
+            {current_streak >= 30 && '+5 Bonus-Lose'}
+            {current_streak >= 14 && current_streak < 30 && '+3 Bonus-Lose'}
+            {current_streak >= 7 && current_streak < 14 && '+2 Bonus-Lose'}
+            {current_streak >= 3 && current_streak < 7 && '+1 Bonus-Los'}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  badgeInactive: {
+    borderColor: theme.colors.grayLight,
+    backgroundColor: theme.colors.grayLight,
+  },
+  emoji: {
+    fontSize: 28,
+    marginRight: theme.spacing.sm,
+  },
+  emojiInactive: {
+    fontSize: 24,
+    marginRight: theme.spacing.sm,
+  },
+  textContainer: {
+    alignItems: 'center',
+  },
+  streakNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    lineHeight: 28,
+  },
+  streakLabel: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: -2,
+  },
+  textInactive: {
+    fontSize: 14,
+    color: theme.colors.gray,
+  },
+  protectionBadge: {
+    marginLeft: theme.spacing.sm,
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 2,
+    paddingHorizontal: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+  },
+  protectionText: {
+    fontSize: 10,
+    color: theme.colors.white,
+    fontWeight: '600',
+  },
+  bonusInfo: {
+    marginTop: theme.spacing.xs,
+    backgroundColor: 'rgba(115, 138, 76, 0.1)',
+    paddingVertical: 4,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+  },
+  bonusText: {
+    fontSize: 11,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+});
+
+######## FILE: /sandbox/repo/src/_legacy/WinnerCard.tsx ########
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+import { Winner } from '../types';
+import { formatWinnerName, getPrizeForType } from '../services/winnerService';
+
+interface WinnerCardProps {
+  winner: Winner;
+  isCurrentUser?: boolean;
+}
+
+export default function WinnerCard({ winner, isCurrentUser = false }: WinnerCardProps) {
+  const prize = getPrizeForType(winner.winner_type);
+  
+  // Bestimme Hintergrundfarbe basierend auf Gewinner-Typ
+  const getBackgroundColor = () => {
+    if (isCurrentUser) return theme.colors.accent;
+    switch (winner.winner_type) {
+      case 'random_1':
+        return '#FFD700'; // Gold
+      case 'random_2':
+        return '#C0C0C0'; // Silber
+      case 'random_3':
+        return '#CD7F32'; // Bronze
+      case 'quality':
+        return theme.colors.primary;
+      default:
+        return theme.colors.grayLight;
+    }
+  };
+
+  // Bestimme Label
+  const getLabel = () => {
+    switch (winner.winner_type) {
+      case 'random_1':
+        return '🥇 1. Platz';
+      case 'random_2':
+        return '🥈 2. Platz';
+      case 'random_3':
+        return '🥉 3. Platz';
+      case 'quality':
+        return '⭐ Qualitäts-Preis';
+      default:
+        return 'Gewinner';
+    }
+  };
+
+  return (
+    <View style={[styles.card, isCurrentUser && styles.cardHighlight]}>
+      {/* Header mit Typ */}
+      <View style={[styles.header, { backgroundColor: getBackgroundColor() }]}>
+        <Text style={styles.label}>{getLabel()}</Text>
+        {isCurrentUser && (
+          <View style={styles.youBadge}>
+            <Text style={styles.youText}>DU!</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Content */}
+      <View style={styles.content}>
+        <Text style={styles.prizeIcon}>{prize?.icon || '🎁'}</Text>
+        <View style={styles.info}>
+          <Text style={styles.prizeName}>{winner.prize}</Text>
+          <Text style={styles.winnerName}>
+            {formatWinnerName(winner)}
+          </Text>
+          {winner.reward_claimed && (
+            <View style={styles.claimedBadge}>
+              <Text style={styles.claimedText}>✓ Eingelöst</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Footer mit Datum */}
+      <View style={styles.footer}>
+        <Text style={styles.dateText}>
+          Woche vom {new Date(winner.week_start).toLocaleDateString('de-DE')}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.md,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardHighlight: {
+    borderWidth: 3,
+    borderColor: theme.colors.accent,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  youBadge: {
+    backgroundColor: theme.colors.white,
+    paddingVertical: 2,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+  },
+  youText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: theme.colors.accent,
+  },
+  content: {
+    flexDirection: 'row',
+    padding: theme.spacing.md,
+    alignItems: 'center',
+  },
+  prizeIcon: {
+    fontSize: 48,
+    marginRight: theme.spacing.md,
+  },
+  info: {
+    flex: 1,
+  },
+  prizeName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  winnerName: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+  },
+  claimedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: theme.colors.success,
+    paddingVertical: 2,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginTop: theme.spacing.xs,
+  },
+  claimedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.white,
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.grayLight,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+  },
+  dateText: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    textAlign: 'center',
+  },
+});
+
+######## FILE: /sandbox/repo/src/_legacy/lotteryService.ts ########
+import { supabase } from '../lib/supabase';
+import { WeeklyLoses, AwardLosesResult } from '../types';
+
+/**
+ * Berechnet den Montag der aktuellen Woche (ISO 8601)
+ */
+export const getCurrentWeekStart = (): string => {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(now.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday.toISOString().split('T')[0];
+};
+
+/**
+ * Heutiges Datum als ISO String
+ */
+export const getToday = (): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today.toISOString().split('T')[0];
+};
+
+/**
+ * Lädt oder erstellt die Lose-Daten für die aktuelle Woche
+ */
+export const getOrCreateWeeklyLoses = async (
+  userId: string
+): Promise<WeeklyLoses | null> => {
+  const weekStart = getCurrentWeekStart();
+
+  // Versuche existierende Daten zu laden
+  const { data: existing, error: fetchError } = await supabase
+    .from('loses')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('week_start', weekStart)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  // Erstelle neue Woche
+  const { data: newLoses, error: insertError } = await supabase
+    .from('loses')
+    .insert({
+      user_id: userId,
+      week_start: weekStart,
+      total_loses: 0,
+      bonus_loses: 0,
+      streak_loses: 0,
+      daily_count: 0,
+      last_rating_date: null,
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    console.error('Fehler beim Erstellen der Wochendaten:', insertError);
+    return null;
+  }
+
+  return newLoses;
+};
+
+/**
+ * Vergibt Lose nach einer Bewertung
+ * 
+ * Regeln:
+ * - 1 Los = Basis-Bewertung
+ * - +1 Los = Mit Kommentar
+ * - +1 Los = Mit Foto
+ * - Max. 3 Bewertungen pro Tag
+ */
+export const awardLoses = async (
+  userId: string,
+  hasComment: boolean,
+  hasPhoto: boolean
+): Promise<AwardLosesResult> => {
+  const weekStart = getCurrentWeekStart();
+  const today = getToday();
+
+  // Aktuelle Wochendaten laden
+  let weeklyLoses = await getOrCreateWeeklyLoses(userId);
+  
+  if (!weeklyLoses) {
+    return {
+      success: false,
+      losesAwarded: 0,
+      message: 'Fehler beim Laden der Lose-Daten',
+    };
+  }
+
+  // Prüfe Tages-Limit (max 3 Lose/Tag)
+  if (weeklyLoses.last_rating_date === today && weeklyLoses.daily_count >= 3) {
+    return {
+      success: false,
+      losesAwarded: 0,
+      message: '🎟️ Tages-Limit erreicht! Morgen kannst du wieder 3 Lose sammeln.',
+    };
+  }
+
+  // Berechne neue Lose
+  let newLoses = 1; // Basis
+  if (hasComment) newLoses += 1;
+  if (hasPhoto) newLoses += 1;
+
+  // Update daily_count
+  const isNewDay = weeklyLoses.last_rating_date !== today;
+  const newDailyCount = isNewDay ? 1 : weeklyLoses.daily_count + 1;
+
+  // Update Datenbank
+  const { data: updated, error } = await supabase
+    .from('loses')
+    .update({
+      total_loses: weeklyLoses.total_loses + newLoses,
+      daily_count: newDailyCount,
+      last_rating_date: today,
+    })
+    .eq('id', weeklyLoses.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Fehler beim Update der Lose:', error);
+    return {
+      success: false,
+      losesAwarded: 0,
+      message: 'Fehler beim Speichern der Lose',
+    };
+  }
+
+  return {
+    success: true,
+    losesAwarded: newLoses,
+    newTotal: updated.total_loses,
+    message: `🎟️ +${newLoses} ${newLoses === 1 ? 'Los' : 'Lose'} gesammelt!`,
+  };
+};
+
+/**
+ * Fügt Streak-Bonus-Lose hinzu
+ */
+export const addStreakBonusLoses = async (
+  userId: string,
+  bonusLoses: number
+): Promise<boolean> => {
+  const weekStart = getCurrentWeekStart();
+
+  const { data: weeklyLoses } = await supabase
+    .from('loses')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('week_start', weekStart)
+    .single();
+
+  if (!weeklyLoses) return false;
+
+  const { error } = await supabase
+    .from('loses')
+    .update({
+      streak_loses: weeklyLoses.streak_loses + bonusLoses,
+      total_loses: weeklyLoses.total_loses + bonusLoses,
+    })
+    .eq('id', weeklyLoses.id);
+
+  return !error;
+};
+
+/**
+ * Lädt die Lose der aktuellen Woche
+ */
+export const getCurrentWeekLoses = async (
+  userId: string
+): Promise<WeeklyLoses | null> => {
+  return await getOrCreateWeeklyLoses(userId);
+};
+
+/**
+ * Lädt alle Lose-Daten eines Users (Historie)
+ */
+export const getUserLosesHistory = async (
+  userId: string
+): Promise<WeeklyLoses[]> => {
+  const { data, error } = await supabase
+    .from('loses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('week_start', { ascending: false });
+
+  if (error) {
+    console.error('Fehler beim Laden der Lose-Historie:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Berechnet Tage bis zur nächsten Ziehung (Montag)
+ */
+export const getDaysUntilNextDraw = (): number => {
+  const now = new Date();
+  const day = now.getDay();
+  const daysUntilMonday = day === 0 ? 1 : 8 - day;
+  return daysUntilMonday;
+};
+
+/**
+ * Formatiert Datum für Anzeige
+ */
+export const formatWeekStart = (weekStart: string): string => {
+  const date = new Date(weekStart);
+  const options: Intl.DateTimeFormatOptions = { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  };
+  return date.toLocaleDateString('de-DE', options);
+};
+
+######## FILE: /sandbox/repo/src/_legacy/streakService.ts ########
+import { supabase } from '../lib/supabase';
+import { Streak, StreakUpdateResult } from '../types';
+import { getToday } from './lotteryService';
+import { addStreakBonusLoses } from './lotteryService';
+
+/**
+ * Lädt oder erstellt Streak-Daten für einen User
+ */
+export const getOrCreateStreak = async (userId: string): Promise<Streak | null> => {
+  // Versuche existierende Daten zu laden
+  const { data: existing } = await supabase
+    .from('streaks')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (existing) {
+    return existing;
+  }
+
+  // Erstelle neuen Streak
+  const { data: newStreak, error } = await supabase
+    .from('streaks')
+    .insert({
+      user_id: userId,
+      current_streak: 0,
+      longest_streak: 0,
+      last_rating_date: null,
+      streak_protection_used: false,
+      protection_reset_month: null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Fehler beim Erstellen des Streaks:', error);
+    return null;
+  }
+
+  return newStreak;
+};
+
+/**
+ * Berechnet Streak-Bonus-Lose basierend auf aktuellem Streak
+ * 
+ * Regeln:
+ * - 3 Tage Streak: +1 Los
+ * - 7 Tage Streak: +2 Lose
+ * - 14 Tage Streak: +3 Lose
+ * - 30 Tage Streak: +5 Lose
+ */
+const calculateStreakBonus = (streakDays: number): number => {
+  if (streakDays >= 30) return 5;
+  if (streakDays >= 14) return 3;
+  if (streakDays >= 7) return 2;
+  if (streakDays >= 3) return 1;
+  return 0;
+};
+
+/**
+ * Aktualisiert den Streak nach einer Bewertung
+ */
+export const updateStreak = async (
+  userId: string
+): Promise<StreakUpdateResult> => {
+  const today = getToday();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  let streak = await getOrCreateStreak(userId);
+  
+  if (!streak) {
+    return {
+      success: false,
+      currentStreak: 0,
+      bonusLoses: 0,
+      message: 'Fehler beim Laden des Streaks',
+    };
+  }
+
+  // Prüfe ob heute schon bewertet wurde
+  if (streak.last_rating_date === today) {
+    return {
+      success: true,
+      currentStreak: streak.current_streak,
+      bonusLoses: 0,
+      message: 'Streak bereits heute aktualisiert',
+    };
+  }
+
+  let newStreak = streak.current_streak;
+  let streakBroken = false;
+
+  // Streak-Logik
+  if (streak.last_rating_date === yesterdayStr) {
+    // Streak fortsetzen
+    newStreak += 1;
+  } else if (streak.last_rating_date === null) {
+    // Erster Tag
+    newStreak = 1;
+  } else {
+    // Streak unterbrochen - prüfe Schutz
+    const currentMonth = new Date().getMonth() + 1;
+    const canUseProtection = 
+      !streak.streak_protection_used || 
+      streak.protection_reset_month !== currentMonth;
+
+    if (canUseProtection && streak.current_streak >= 3) {
+      // Schutz verwenden
+      newStreak = streak.current_streak; // Streak bleibt erhalten
+      streakBroken = false;
+      
+      await supabase
+        .from('streaks')
+        .update({
+          streak_protection_used: true,
+          protection_reset_month: currentMonth,
+        })
+        .eq('id', streak.id);
+    } else {
+      // Streak verloren
+      newStreak = 1;
+      streakBroken = true;
+    }
+  }
+
+  // Berechne Bonus-Lose
+  const bonusLoses = calculateStreakBonus(newStreak);
+
+  // Update Streak
+  const newLongest = Math.max(newStreak, streak.longest_streak);
+  
+  const { error } = await supabase
+    .from('streaks')
+    .update({
+      current_streak: newStreak,
+      longest_streak: newLongest,
+      last_rating_date: today,
+    })
+    .eq('id', streak.id);
+
+  if (error) {
+    console.error('Fehler beim Update des Streaks:', error);
+    return {
+      success: false,
+      currentStreak: streak.current_streak,
+      bonusLoses: 0,
+      message: 'Fehler beim Speichern des Streaks',
+    };
+  }
+
+  // Füge Bonus-Lose hinzu
+  if (bonusLoses > 0) {
+    await addStreakBonusLoses(userId, bonusLoses);
+  }
+
+  // Erstelle Nachricht
+  let message = `🔥 ${newStreak} Tage Streak!`;
+  if (bonusLoses > 0) {
+    message += ` +${bonusLoses} Bonus-${bonusLoses === 1 ? 'Los' : 'Lose'}!`;
+  }
+  if (streakBroken) {
+    message = `Streak unterbrochen. Neuer Start: Tag 1`;
+  }
+
+  return {
+    success: true,
+    currentStreak: newStreak,
+    bonusLoses,
+    message,
+  };
+};
+
+/**
+ * Lädt den aktuellen Streak eines Users
+ */
+export const getCurrentStreak = async (userId: string): Promise<Streak | null> => {
+  return await getOrCreateStreak(userId);
+};
+
+/**
+ * Prüft ob Streak-Schutz verfügbar ist
+ */
+export const isStreakProtectionAvailable = async (
+  userId: string
+): Promise<boolean> => {
+  const streak = await getOrCreateStreak(userId);
+  if (!streak) return false;
+
+  const currentMonth = new Date().getMonth() + 1;
+  
+  return (
+    !streak.streak_protection_used || 
+    streak.protection_reset_month !== currentMonth
+  );
+};
+
+/**
+ * Setzt Streak-Schutz am Monatsanfang zurück (Cron-Job)
+ */
+export const resetMonthlyStreakProtection = async (): Promise<void> => {
+  const currentMonth = new Date().getMonth() + 1;
+
+  await supabase
+    .from('streaks')
+    .update({
+      streak_protection_used: false,
+      protection_reset_month: currentMonth,
+    })
+    .neq('protection_reset_month', currentMonth);
+};
+
+/**
+ * Formatiert Streak für Anzeige
+ */
+export const formatStreakMessage = (streak: Streak): string => {
+  if (streak.current_streak === 0) {
+    return 'Starte deinen Streak!';
+  }
+  
+  const days = streak.current_streak;
+  const emoji = days >= 30 ? '🔥🔥🔥' : days >= 7 ? '🔥🔥' : '🔥';
+  
+  return `${emoji} ${days} ${days === 1 ? 'Tag' : 'Tage'} Streak`;
+};
+
+######## FILE: /sandbox/repo/src/_legacy/winnerService.ts ########
+import { supabase } from '../lib/supabase';
+import { Winner, Prize } from '../types';
+import { getCurrentWeekStart } from './lotteryService';
+
+const secureRandomIndex = (maxExclusive: number): number => {
+  if (maxExclusive <= 0) {
+    throw new Error('maxExclusive muss > 0 sein');
+  }
+
+  const cryptoObj = globalThis.crypto;
+  if (!cryptoObj?.getRandomValues) {
+    throw new Error(
+      'Kryptografischer Zufall nicht verfügbar. Stelle sicher, dass react-native-get-random-values geladen ist.'
+    );
+  }
+
+  const maxUint32 = 0x100000000; // 2^32
+  const limit = maxUint32 - (maxUint32 % maxExclusive);
+  const arr = new Uint32Array(1);
+
+  let value = 0;
+  do {
+    cryptoObj.getRandomValues(arr);
+    value = arr[0];
+  } while (value >= limit);
+
+  return value % maxExclusive;
+};
+
+/**
+ * Preise für die verschiedenen Gewinner-Typen
+ */
+export const PRIZES: Prize[] = [
+  {
+    id: '1',
+    name: '10€ Gutschein',
+    description: 'Einkaufsgutschein für Paradieschen',
+    icon: '🎁',
+    winner_type: 'random_1',
+  },
+  {
+    id: '2',
+    name: '5€ Gutschein',
+    description: 'Einkaufsgutschein für Paradieschen',
+    icon: '🎁',
+    winner_type: 'random_2',
+  },
+  {
+    id: '3',
+    name: 'Überraschungsbox',
+    description: 'Kleine Überraschung aus dem Sortiment',
+    icon: '📦',
+    winner_type: 'random_3',
+  },
+  {
+    id: '4',
+    name: 'Qualitäts-Preis',
+    description: 'Für die beste Bewertung der Woche',
+    icon: '⭐',
+    winner_type: 'quality',
+  },
+];
+
+/**
+ * Lädt Gewinner einer bestimmten Woche
+ */
+export const getWeekWinners = async (weekStart: string): Promise<Winner[]> => {
+  const { data, error } = await supabase
+    .from('winners')
+    .select(`
+      *,
+      user:app_users(name),
+      settings:user_settings(is_anonymous, display_name)
+    `)
+    .eq('week_start', weekStart)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Fehler beim Laden der Gewinner:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Lädt Gewinner der aktuellen Woche
+ */
+export const getCurrentWeekWinners = async (): Promise<Winner[]> => {
+  const weekStart = getCurrentWeekStart();
+  return await getWeekWinners(weekStart);
+};
+
+/**
+ * Lädt alle Gewinner (Historie)
+ */
+export const getAllWinners = async (limit: number = 20): Promise<Winner[]> => {
+  const { data, error } = await supabase
+    .from('winners')
+    .select(`
+      *,
+      user:app_users(name),
+      settings:user_settings(is_anonymous, display_name)
+    `)
+    .order('week_start', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Fehler beim Laden der Gewinner-Historie:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Prüft ob ein User in einer Woche gewonnen hat
+ */
+export const hasUserWonThisWeek = async (userId: string): Promise<boolean> => {
+  const weekStart = getCurrentWeekStart();
+  
+  const { data, error } = await supabase
+    .from('winners')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('week_start', weekStart)
+    .single();
+
+  return !!data;
+};
+
+/**
+ * Erstellt einen Gewinner (Admin-Funktion)
+ */
+export const createWinner = async (
+  userId: string,
+  winnerType: 'random_1' | 'random_2' | 'random_3' | 'quality',
+  weekStart?: string
+): Promise<Winner | null> => {
+  const week = weekStart || getCurrentWeekStart();
+  const prize = PRIZES.find(p => p.winner_type === winnerType);
+
+  if (!prize) {
+    console.error('Ungültiger Gewinner-Typ:', winnerType);
+    return null;
+  }
+
+  // Prüfe User-Settings für Anonym-Option
+  const { data: settings } = await supabase
+    .from('user_settings')
+    .select('is_anonymous')
+    .eq('user_id', userId)
+    .single();
+
+  const { data, error } = await supabase
+    .from('winners')
+    .insert({
+      user_id: userId,
+      week_start: week,
+      winner_type: winnerType,
+      prize: prize.name,
+      is_anonymous: settings?.is_anonymous || false,
+      reward_claimed: false,
+      reward_qr_code: null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Fehler beim Erstellen des Gewinners:', error);
+    return null;
+  }
+
+  return data;
+};
+
+/**
+ * Markiert einen Gewinn als eingelöst
+ */
+export const claimReward = async (
+  winnerId: string,
+  qrCode: string
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from('winners')
+    .update({
+      reward_claimed: true,
+      reward_qr_code: qrCode,
+    })
+    .eq('id', winnerId);
+
+  return !error;
+};
+
+/**
+ * Formatiert Gewinner-Name (mit Anonym-Option)
+ */
+export const formatWinnerName = (winner: any): string => {
+  if (winner.is_anonymous) {
+    return winner.settings?.display_name || 'Anonym';
+  }
+  return winner.user?.name || 'Unbekannt';
+};
+
+/**
+ * Holt Preis-Info für Gewinner-Typ
+ */
+export const getPrizeForType = (
+  winnerType: 'random_1' | 'random_2' | 'random_3' | 'quality'
+): Prize | undefined => {
+  return PRIZES.find(p => p.winner_type === winnerType);
+};
+
+/**
+ * Zieht Gewinner für eine Woche (Admin-Funktion)
+ *
+ * Fairness-Modus:
+ * - 1 Teilnehmer = 1 Los (alle mit >= 1 Bewertung in der Woche)
+ * - Gleichverteilte Ziehung via kryptografischem RNG
+ * - Keine Gewichtung nach Anzahl Bewertungen/Lose
+ */
+export const drawWeeklyWinners = async (
+  weekStart?: string
+): Promise<{ success: boolean; winners: Winner[]; message: string }> => {
+  const week = weekStart || getCurrentWeekStart();
+  const weekStartDate = new Date(`${week}T00:00:00.000Z`);
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 7);
+
+  const weekStartIso = weekStartDate.toISOString();
+  const weekEndIso = weekEndDate.toISOString();
+
+  // Teilnehmer: alle User mit >=1 Bewertung in der Woche (DISTINCT)
+  const { data: ratingRows, error: ratingsError } = await supabase
+    .from('ratings')
+    .select('user_id')
+    .gte('created_at', weekStartIso)
+    .lt('created_at', weekEndIso)
+    .not('user_id', 'is', null);
+
+  if (ratingsError || !ratingRows || ratingRows.length === 0) {
+    return {
+      success: false,
+      winners: [],
+      message: 'Keine Teilnehmer für diese Woche gefunden',
+    };
+  }
+
+  const participants = Array.from(new Set(ratingRows.map((r: { user_id: string }) => r.user_id)));
+
+  // Ziehe 3 zufällige Gewinner
+  const winners: Winner[] = [];
+  const drawnUserIds = new Set<string>();
+
+  for (const type of ['random_1', 'random_2', 'random_3'] as const) {
+    const remainingParticipants = participants.filter((id) => !drawnUserIds.has(id));
+    if (remainingParticipants.length === 0) break;
+
+    const randomIndex = secureRandomIndex(remainingParticipants.length);
+    const winnerId = remainingParticipants[randomIndex];
+    drawnUserIds.add(winnerId);
+
+    if (winnerId) {
+      const winner = await createWinner(winnerId, type, week);
+      if (winner) winners.push(winner);
+    }
+  }
+
+  // Qualitäts-Gewinner: Beste Bewertung der Woche
+  const { data: bestRating } = await supabase
+    .from('ratings')
+    .select('user_id, overall_stars, comment')
+    .gte('created_at', weekStartIso)
+    .lt('created_at', weekEndIso)
+    .not('user_id', 'is', null)
+    .not('comment', 'is', null)
+    .order('overall_stars', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (bestRating && !drawnUserIds.has(bestRating.user_id)) {
+    const qualityWinner = await createWinner(bestRating.user_id, 'quality', week);
+    if (qualityWinner) winners.push(qualityWinner);
+  }
+
+  return {
+    success: true,
+    winners,
+    message: `${winners.length} Gewinner erfolgreich gezogen!`,
+  };
+};
+
+######## FILE: /sandbox/repo/src/components/AmpelBadge.tsx ########
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+
+interface AmpelBadgeProps {
+  status: 'green' | 'yellow' | 'red';
+  stars: number;
+}
+
+export default function AmpelBadge({ status, stars }: AmpelBadgeProps) {
+  const getStatusConfig = () => {
+    switch (status) {
+      case 'green':
+        return { emoji: '🟢', text: 'Empfohlen', color: theme.colors.primary };
+      case 'yellow':
+        return { emoji: '🟡', text: 'Beobachten', color: theme.colors.yellow };
+      case 'red':
+        return { emoji: '🔴', text: 'Prüfen', color: theme.colors.red };
+    }
+  };
+
+  const config = getStatusConfig();
+
+  return (
+    <View style={[styles.container, { backgroundColor: config.color + '20' }]}>
+      <Text style={styles.emoji}>{config.emoji}</Text>
+      <Text style={[styles.text, { color: config.color }]}>{config.text}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  emoji: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  text: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+});
+
+######## FILE: /sandbox/repo/src/components/BackendHealthCard.tsx ########
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+import { useBackendHealth } from '../hooks/useBackendHealth';
+
+export default function BackendHealthCard() {
+  const { loading, ok, data, error, endpoint, lastCheckedAt, refresh } = useBackendHealth();
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Backend Connectivity Check</Text>
+        <View style={[styles.badge, ok ? styles.badgeOk : styles.badgeFail]}>
+          <Text style={styles.badgeText}>{ok ? 'OK' : 'FAIL'}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.metaLabel}>Endpoint</Text>
+      <Text style={styles.metaValue}>{endpoint}</Text>
+
+      <Text style={styles.metaLabel}>Status</Text>
+      <Text style={styles.metaValue}>{loading ? 'Prüfe...' : data?.status || 'nicht erreichbar'}</Text>
+
+      {typeof data?.version !== 'undefined' && (
+        <>
+          <Text style={styles.metaLabel}>Version</Text>
+          <Text style={styles.metaValue}>{data.version}</Text>
+        </>
+      )}
+
+      {error && (
+        <>
+          <Text style={styles.errorLabel}>Fehler</Text>
+          <Text style={styles.errorValue}>{error}</Text>
+        </>
+      )}
+
+      <Text style={styles.timestamp}>
+        Last Check: {lastCheckedAt ? new Date(lastCheckedAt).toLocaleString('de-DE') : '-'}
+      </Text>
+
+      <TouchableOpacity style={styles.refreshButton} onPress={refresh} disabled={loading}>
+        <Text style={styles.refreshButtonText}>{loading ? 'Prüfung läuft...' : 'Erneut prüfen'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#E7E7E7',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  badgeOk: {
+    backgroundColor: '#D9FBE8',
+  },
+  badgeFail: {
+    backgroundColor: '#FFE1E1',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    marginTop: 6,
+  },
+  metaValue: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  errorLabel: {
+    fontSize: 12,
+    color: theme.colors.red,
+    marginTop: 6,
+    fontWeight: '600',
+  },
+  errorValue: {
+    fontSize: 13,
+    color: theme.colors.red,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    marginTop: 10,
+  },
+  refreshButton: {
+    marginTop: 10,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  refreshButtonText: {
+    color: theme.colors.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+});
+
+######## FILE: /sandbox/repo/src/components/EmojiPicker.tsx ########
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+
+interface EmojiPickerProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const EMOJIS = ['😍', '😊', '😐', '😞'];
+
+export default function EmojiPicker({ label, value, onChange }: EmojiPickerProps) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.emojiRow}>
+        {EMOJIS.map((emoji) => (
+          <TouchableOpacity
+            key={emoji}
+            onPress={() => onChange(emoji)}
+            style={[
+              styles.emojiButton,
+              value === emoji && styles.emojiButtonSelected,
+            ]}
+          >
+            <Text style={styles.emoji}>{emoji}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    marginVertical: theme.spacing.sm,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  emojiRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  emojiButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.grayLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emojiButtonSelected: {
+    backgroundColor: theme.colors.primary,
+    borderWidth: 2,
+    borderColor: theme.colors.white,
+  },
+  emoji: {
+    fontSize: 24,
+  },
+});
+
+######## FILE: /sandbox/repo/src/components/LoadingScreen.tsx ########
+import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+
+export default function LoadingScreen() {
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#48bb78" />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+######## FILE: /sandbox/repo/src/components/PointsAnimation.tsx ########
+import React, { useEffect } from 'react';
+import { Modal, View, Text, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+
+interface PointsAnimationProps {
+  visible: boolean;
+  points: number;
+  onClose: () => void;
+}
+
+export default function PointsAnimation({ visible, points, onClose }: PointsAnimationProps) {
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [visible, onClose]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+    >
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <Text style={styles.emoji}>🌱</Text>
+          <Text style={styles.points}>+{points} Punkte!</Text>
+          <Text style={styles.message}>Danke für deine Bewertung!</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+    minWidth: 250,
+  },
+  emoji: {
+    fontSize: 80,
+    marginBottom: theme.spacing.md,
+  },
+  points: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  message: {
+    fontSize: 16,
+    color: theme.colors.gray,
+  },
+});
+
+######## FILE: /sandbox/repo/src/components/StarRating.tsx ########
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { theme } from '../constants/theme';
+
+interface StarRatingProps {
+  value: number;
+  onChange: (value: number) => void;
+}
+
+export default function StarRating({ value, onChange }: StarRatingProps) {
+  return (
+    <View style={styles.container}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <TouchableOpacity
+          key={star}
+          onPress={() => onChange(star)}
+          style={styles.starButton}
+        >
+          <Text style={styles.star}>
+            {star <= value ? '★' : '☆'}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  starButton: {
+    marginHorizontal: 4,
+  },
+  star: {
+    fontSize: 40,
+    color: theme.colors.primary,
+  },
+});
+
+######## FILE: /sandbox/repo/src/constants/theme.ts ########
+// Paradieschen Branding Colors (extracted from paradieschen.de)
+export const theme = {
+  colors: {
+    // Main brand colors
+    primary: '#738a4c',        // Paradieschen Olivgrün (main green)
+    primaryLight: '#b9c5a6',   // Light green accent
+    primaryDark: '#2e3d20',    // Dark green
+    
+    // Secondary/accent colors
+    secondary: '#f4f0ef',      // Cream/beige background
+    accent: '#eb5d48',         // Coral/orange accent
+    accentRed: '#a64553',      // Deep red accent
+    
+    // Neutral colors
+    white: '#ffffff',
+    offWhite: '#fffeff',
+    grayLight: '#f6ecee',      // Light pink-gray
+    gray: '#c0c0c0',
+    text: '#1d1d1b',           // Almost black text
+    textSecondary: '#2e3d20',  // Dark green for secondary text
+    
+    // Status colors (keeping for app functionality)
+    red: '#a64553',            // Using Paradieschen red
+    yellow: '#FFCC00',
+    success: '#738a4c',        // Using primary green for success
+  },
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
+  borderRadius: { sm: 8, md: 12, lg: 16, xl: 24 }
+};
+
+######## FILE: /sandbox/repo/src/data/dummyData.ts ########
+import { Charge } from '../types';
+
+export const DUMMY_CHARGES: Charge[] = [
+  { id: '1', product_id: '1', charge_code: 'ERD-2026-11', delivery_date: '2026-03-10' },
+  { id: '2', product_id: '2', charge_code: 'ZUC-2026-11', delivery_date: '2026-03-10' },
+];
+
+export const DUMMY_REWARDS: never[] = [];
+######## FILE: /sandbox/repo/src/hooks/useBackendAuth.ts ########
+import { useCallback, useEffect, useState } from 'react';
+import { ApiError, BackendAuthStatus, getAuthStatus } from '../lib/api';
+
+type BackendAuthState = {
+  loading: boolean;
+  ok: boolean;
+  data: BackendAuthStatus | null;
+  error: string | null;
+  statusCode: number | null;
+  lastCheckedAt: string | null;
+};
+
+export function useBackendAuth() {
+  const [state, setState] = useState<BackendAuthState>({
+    loading: false,
+    ok: false,
+    data: null,
+    error: null,
+    statusCode: null,
+    lastCheckedAt: null,
+  });
+
+  const refresh = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const data = await getAuthStatus();
+      setState({
+        loading: false,
+        ok: true,
+        data,
+        error: null,
+        statusCode: 200,
+        lastCheckedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      setState({
+        loading: false,
+        ok: false,
+        data: null,
+        error: message,
+        statusCode: error instanceof ApiError ? error.status : null,
+        lastCheckedAt: new Date().toISOString(),
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return {
+    ...state,
+    refresh,
+  };
+}
+
+######## FILE: /sandbox/repo/src/hooks/useBackendHealth.ts ########
+import { useCallback, useEffect, useState } from 'react';
+import { getApiBaseUrl, getHealth, HealthResponse } from '../lib/api';
+
+type BackendHealthState = {
+  loading: boolean;
+  ok: boolean;
+  data: HealthResponse | null;
+  error: string | null;
+  lastCheckedAt: string | null;
+  endpoint: string;
+};
+
+export function useBackendHealth() {
+  const [state, setState] = useState<BackendHealthState>({
+    loading: false,
+    ok: false,
+    data: null,
+    error: null,
+    lastCheckedAt: null,
+    endpoint: getApiBaseUrl() || '(nicht gesetzt)',
+  });
+
+  const checkHealth = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const data = await getHealth();
+      setState({
+        loading: false,
+        ok: data.status === 'ok',
+        data,
+        error: null,
+        lastCheckedAt: new Date().toISOString(),
+        endpoint: getApiBaseUrl() || '(nicht gesetzt)',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      setState({
+        loading: false,
+        ok: false,
+        data: null,
+        error: message,
+        lastCheckedAt: new Date().toISOString(),
+        endpoint: getApiBaseUrl() || '(nicht gesetzt)',
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
+
+  return {
+    ...state,
+    refresh: checkHealth,
+  };
+}
+
+######## FILE: /sandbox/repo/src/hooks/useBackendLottery.ts ########
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ApiError,
+  BackendLotteryStatus,
+  EnterLotteryResponse,
+  enterLottery,
+  getLotteryStatus,
+} from '../lib/api';
+
+type BackendLotteryState = {
+  loading: boolean;
+  submitting: boolean;
+  ok: boolean;
+  data: BackendLotteryStatus | null;
+  submitResult: EnterLotteryResponse | null;
+  error: string | null;
+  statusCode: number | null;
+  lastCheckedAt: string | null;
+};
+
+export function useBackendLottery() {
+  const [state, setState] = useState<BackendLotteryState>({
+    loading: false,
+    submitting: false,
+    ok: false,
+    data: null,
+    submitResult: null,
+    error: null,
+    statusCode: null,
+    lastCheckedAt: null,
+  });
+
+  const refresh = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const data = await getLotteryStatus();
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        ok: true,
+        data,
+        error: null,
+        statusCode: 200,
+        lastCheckedAt: new Date().toISOString(),
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        ok: false,
+        data: null,
+        error: message,
+        statusCode: error instanceof ApiError ? error.status : null,
+        lastCheckedAt: new Date().toISOString(),
+      }));
+    }
+  }, []);
+
+  const submitEntry = useCallback(async () => {
+    setState((prev) => ({ ...prev, submitting: true, error: null }));
+
+    try {
+      const submitResult = await enterLottery();
+      setState((prev) => ({
+        ...prev,
+        submitting: false,
+        submitResult,
+        error: null,
+      }));
+      await refresh();
+      return submitResult;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      setState((prev) => ({
+        ...prev,
+        submitting: false,
+        submitResult: null,
+        error: message,
+      }));
+      throw error;
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return {
+    ...state,
+    refresh,
+    submitEntry,
+  };
+}
+
+######## FILE: /sandbox/repo/src/hooks/useBackendReviews.ts ########
+import { useCallback, useEffect, useState } from 'react';
+import { ApiError, BackendReview, getReviews } from '../lib/api';
+
+type BackendReviewsState = {
+  loading: boolean;
+  ok: boolean;
+  items: BackendReview[];
+  error: string | null;
+  statusCode: number | null;
+  lastCheckedAt: string | null;
+};
+
+export function useBackendReviews() {
+  const [state, setState] = useState<BackendReviewsState>({
+    loading: false,
+    ok: false,
+    items: [],
+    error: null,
+    statusCode: null,
+    lastCheckedAt: null,
+  });
+
+  const refresh = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const items = await getReviews();
+      setState({
+        loading: false,
+        ok: true,
+        items,
+        error: null,
+        statusCode: 200,
+        lastCheckedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      setState({
+        loading: false,
+        ok: false,
+        items: [],
+        error: message,
+        statusCode: error instanceof ApiError ? error.status : null,
+        lastCheckedAt: new Date().toISOString(),
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return {
+    ...state,
+    refresh,
+  };
+}
+
+######## FILE: /sandbox/repo/src/lib/api.ts ########
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || '';
+
+export type HealthResponse = {
+  status: string;
+  key_set?: boolean;
+  projects?: number;
+  version?: string;
+};
+
+export type BackendAuthStatus = {
+  authenticated: boolean;
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+};
+
+export type BackendReview = {
+  id: string | number;
+  user_id?: string | number;
+  rating?: number;
+  comment?: string;
+  created_at?: string;
+};
+
+export type BackendLotteryStatus = {
+  status?: string;
+  is_open?: boolean;
+  current_week?: string;
+  entries?: number;
+  message?: string;
+};
+
+export type EnterLotteryResponse = {
+  success?: boolean;
+  message?: string;
+};
+
+export class ApiError extends Error {
+  status: number;
+  responseText: string;
+
+  constructor(message: string, status: number, responseText = '') {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.responseText = responseText;
+  }
+}
+
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
+
+export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  if (!API_BASE_URL) {
+    throw new Error('EXPO_PUBLIC_API_BASE_URL ist nicht gesetzt.');
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${API_BASE_URL}${normalizedPath}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers || {}),
+      },
+    });
+  } catch (error) {
+    console.error('[apiFetch] Netzwerkfehler:', error);
+    throw new Error('Backend nicht erreichbar. Prüfe URL/Netzwerk.');
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    console.error('[apiFetch] HTTP Fehler', response.status, text);
+    throw new ApiError(`Backend-Fehler (${response.status})`, response.status, text);
+  }
+
+  return response;
+}
+
+export async function apiFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await apiFetch(path, init);
+  return response.json() as Promise<T>;
+}
+
+export async function getHealth(): Promise<HealthResponse> {
+  return apiFetchJson<HealthResponse>('/api/health');
+}
+
+export async function getAuthStatus(): Promise<BackendAuthStatus> {
+  return apiFetchJson<BackendAuthStatus>('/api/auth/me');
+}
+
+export async function getReviews(): Promise<BackendReview[]> {
+  return apiFetchJson<BackendReview[]>('/api/reviews');
+}
+
+export async function getLotteryStatus(): Promise<BackendLotteryStatus> {
+  return apiFetchJson<BackendLotteryStatus>('/api/lottery/status');
+}
+
+export async function enterLottery(): Promise<EnterLotteryResponse> {
+  return apiFetchJson<EnterLotteryResponse>('/api/lottery/enter', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+######## FILE: /sandbox/repo/src/lib/supabase.ts ########
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase Konfiguration
+// WICHTIG: Diese Werte müssen in der .env Datei gesetzt werden
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Prüfe ob Supabase konfiguriert ist
+const isConfigured = 
+  supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'https://your-project.supabase.co' &&
+  supabaseAnonKey !== 'your-anon-key-here';
+
+// Erstelle Supabase Client nur wenn konfiguriert, sonst Dummy-Client
+export const supabase = isConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : createClient('https://placeholder.supabase.co', 'placeholder-key');
+
+// Export ob Supabase konfiguriert ist
+export const isSupabaseConfigured = isConfigured;
+
+######## FILE: /sandbox/repo/src/screens/DeveloperScreen.tsx ########
+import React from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import BackendHealthCard from '../components/BackendHealthCard';
+import { theme } from '../constants/theme';
+import { useBackendAuth } from '../hooks/useBackendAuth';
+import { useBackendLottery } from '../hooks/useBackendLottery';
+import { useBackendReviews } from '../hooks/useBackendReviews';
+import { getApiBaseUrl } from '../lib/api';
+
+export default function DeveloperScreen() {
+  const auth = useBackendAuth();
+  const reviews = useBackendReviews();
+  const lottery = useBackendLottery();
+
+  const runLotteryEntry = async () => {
+    try {
+      await lottery.submitEntry();
+    } catch {
+      // Fehler wird bereits im Hook-State hinterlegt
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Developer / Debug</Text>
+      <Text style={styles.subtitle}>Backend- und Integrationsstatus zentral prüfen</Text>
+
+      <BackendHealthCard />
+
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.cardTitle}>Auth Status</Text>
+          <StatusBadge ok={auth.ok} loading={auth.loading} />
+        </View>
+        <Text style={styles.label}>Endpoint</Text>
+        <Text style={styles.value}>{getApiBaseUrl() || '(nicht gesetzt)'}/api/auth/me</Text>
+
+        <Text style={styles.label}>Authenticated</Text>
+        <Text style={styles.value}>
+          {auth.loading ? 'Prüfe...' : auth.data?.authenticated ? 'Ja' : 'Nein/Unbekannt'}
+        </Text>
+
+        {auth.data?.user?.name ? (
+          <>
+            <Text style={styles.label}>User</Text>
+            <Text style={styles.value}>{auth.data.user.name}</Text>
+          </>
+        ) : null}
+
+        {auth.error ? <Text style={styles.error}>Fehler: {auth.error}</Text> : null}
+
+        <TouchableOpacity style={styles.button} onPress={auth.refresh} disabled={auth.loading}>
+          <Text style={styles.buttonText}>{auth.loading ? 'Lade...' : 'Auth neu laden'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.cardTitle}>Reviews</Text>
+          <StatusBadge ok={reviews.ok} loading={reviews.loading} />
+        </View>
+
+        <Text style={styles.label}>Endpoint</Text>
+        <Text style={styles.value}>{getApiBaseUrl() || '(nicht gesetzt)'}/api/reviews</Text>
+
+        <Text style={styles.label}>Gefundene Einträge</Text>
+        <Text style={styles.value}>{reviews.loading ? 'Lade...' : reviews.items.length}</Text>
+
+        {reviews.items.length > 0 ? (
+          <>
+            <Text style={styles.label}>Beispiel</Text>
+            <Text style={styles.valueSmall}>
+              #{String(reviews.items[0].id)} · {reviews.items[0].comment || 'ohne Kommentar'}
+            </Text>
+          </>
+        ) : null}
+
+        {reviews.error ? <Text style={styles.error}>Fehler: {reviews.error}</Text> : null}
+
+        <TouchableOpacity style={styles.button} onPress={reviews.refresh} disabled={reviews.loading}>
+          <Text style={styles.buttonText}>{reviews.loading ? 'Lade...' : 'Reviews neu laden'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.cardTitle}>Lottery</Text>
+          <StatusBadge ok={lottery.ok} loading={lottery.loading || lottery.submitting} />
+        </View>
+
+        <Text style={styles.label}>Status Endpoint</Text>
+        <Text style={styles.value}>{getApiBaseUrl() || '(nicht gesetzt)'}/api/lottery/status</Text>
+
+        <Text style={styles.label}>Status</Text>
+        <Text style={styles.value}>{lottery.loading ? 'Lade...' : lottery.data?.status || '-'}</Text>
+
+        {lottery.data?.message ? (
+          <>
+            <Text style={styles.label}>Nachricht</Text>
+            <Text style={styles.valueSmall}>{lottery.data.message}</Text>
+          </>
+        ) : null}
+
+        {lottery.submitResult?.message ? (
+          <Text style={styles.info}>Letzter Enter-Call: {lottery.submitResult.message}</Text>
+        ) : null}
+
+        {lottery.error ? <Text style={styles.error}>Fehler: {lottery.error}</Text> : null}
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.buttonHalf} onPress={lottery.refresh} disabled={lottery.loading}>
+            <Text style={styles.buttonText}>{lottery.loading ? 'Lade...' : 'Status laden'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buttonHalf}
+            onPress={runLotteryEntry}
+            disabled={lottery.submitting}
+          >
+            <Text style={styles.buttonText}>{lottery.submitting ? 'Sende...' : 'Enter testen'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Supabase Info (Placeholder)</Text>
+        <Text style={styles.valueSmall}>EXPO_PUBLIC_SUPABASE_URL: {process.env.EXPO_PUBLIC_SUPABASE_URL ? 'gesetzt' : 'nicht gesetzt'}</Text>
+        <Text style={styles.valueSmall}>EXPO_PUBLIC_SUPABASE_ANON_KEY: {process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ? 'gesetzt' : 'nicht gesetzt'}</Text>
+      </View>
+    </ScrollView>
+  );
+}
+
+function StatusBadge({ ok, loading }: { ok: boolean; loading: boolean }) {
+  if (loading) {
+    return (
+      <View style={[styles.badge, styles.badgePending]}>
+        <Text style={styles.badgeText}>LÄUFT</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.badge, ok ? styles.badgeOk : styles.badgeFail]}>
+      <Text style={styles.badgeText}>{ok ? 'OK' : 'FAIL'}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.grayLight,
+  },
+  content: {
+    padding: theme.spacing.lg,
+    paddingTop: 56,
+    paddingBottom: theme.spacing.xl,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  subtitle: {
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+  },
+  card: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#E7E7E7',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.xs,
+  },
+  label: {
+    marginTop: 6,
+    fontSize: 12,
+    color: theme.colors.gray,
+  },
+  value: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  valueSmall: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
+  button: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  buttonRow: {
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  buttonHalf: {
+    flex: 1,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: theme.colors.white,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  badgeOk: {
+    backgroundColor: '#D9FBE8',
+  },
+  badgeFail: {
+    backgroundColor: '#FFE1E1',
+  },
+  badgePending: {
+    backgroundColor: '#FFF4CC',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  error: {
+    color: theme.colors.red,
+    marginTop: theme.spacing.xs,
+    fontSize: 12,
+  },
+  info: {
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
+    fontSize: 12,
+  },
+});
+
+######## FILE: /sandbox/repo/src/screens/HomeScreen.tsx ########
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../constants/theme';
+import { Product } from '../types';
+import { supabase } from '../lib/supabase';
+
+const CATEGORY_EMOJIS: { [key: string]: string } = {
+  'Obst': '🍎',
+  'Gemüse': '🥦',
+  'Kräuter': '🌿',
+};
+
+export default function HomeScreen({ navigation }: any) {
+  const [userName, setUserName] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const storedUserName = await AsyncStorage.getItem('userName');
+    setUserName(storedUserName);
+
+    try {
+      setProductsLoading(true);
+      setProductsError(null);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+
+      if (error) {
+        setProductsError(error.message);
+      } else {
+        console.log('Products loaded:', data?.length);
+        setProducts(data || []);
+      }
+    } catch (error) {
+      setProductsError(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setProductsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  const handleTastePress = (product: Product) => {
+    navigation.navigate('Rating', { product });
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Abmelden?', 'Möchtest du dich wirklich abmelden?', [
+      { text: 'Nein', style: 'cancel' },
+      {
+        text: 'Ja',
+        onPress: async () => {
+          await AsyncStorage.removeItem('userName');
+          navigation.reset({ index: 0, routes: [{ name: 'NameInput' }] });
+        },
+      },
+    ]);
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>Hallo, {userName}! 👋</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+          <Ionicons name="log-out-outline" size={28} color="#48bb78" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Offen zum Verkosten 🍽️</Text>
+
+          {productsLoading ? (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>Lade Produkte...</Text>
+            </View>
+          ) : productsError ? (
+            <View style={styles.infoBox}>
+              <Text style={styles.errorText}>Fehler: {productsError}</Text>
+              <TouchableOpacity onPress={onRefresh} style={styles.retryButton}>
+                <Text style={styles.retryText}>Erneut versuchen</Text>
+              </TouchableOpacity>
+            </View>
+          ) : products.length === 0 ? (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>Keine aktiven Produkte gefunden</Text>
+            </View>
+          ) : (
+            products.map((product) => (
+              <View key={product.id} style={styles.productCard}>
+                <View style={styles.productCardContent}>
+                  <View style={styles.categoryIcon}>
+                    <Text style={styles.categoryEmoji}>
+                      {CATEGORY_EMOJIS[product.category] || '🌱'}
+                    </Text>
+                  </View>
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>{product.name}</Text>
+                    {product.supplier ? (
+                      <Text style={styles.productSupplier}>{product.supplier}</Text>
+                    ) : null}
+                    <Text style={styles.productCategory}>{product.category}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.tasteButton} onPress={() => handleTastePress(product)}>
+                  <Text style={styles.tasteButtonText}>Jetzt verkosten →</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bereits bewertet ✅</Text>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>Noch keine Bewertungen heute</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.grayLight },
+  header: {
+    backgroundColor: theme.colors.primary,
+    paddingTop: 60,
+    paddingBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: { flex: 1 },
+  greeting: { fontSize: 24, fontWeight: 'bold', color: theme.colors.white },
+  logoutButton: {
+    backgroundColor: theme.colors.white,
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 3,
+  },
+  content: { flex: 1 },
+  section: { padding: theme.spacing.lg },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: theme.spacing.md },
+  productCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    elevation: 2,
+  },
+  productCardContent: { flexDirection: 'row', marginBottom: theme.spacing.md },
+  categoryIcon: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: theme.colors.primary + '20',
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
+  categoryEmoji: { fontSize: 30 },
+  productInfo: { flex: 1, justifyContent: 'center' },
+  productName: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text, marginBottom: 2 },
+  productSupplier: { fontSize: 13, color: theme.colors.gray, marginBottom: 2 },
+  productCategory: { fontSize: 12, color: theme.colors.primary, fontWeight: '500' },
+  tasteButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.sm,
+    alignItems: 'center',
+  },
+  tasteButtonText: { fontSize: 16, fontWeight: '600', color: theme.colors.white },
+  infoBox: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+  },
+  infoText: { fontSize: 14, color: theme.colors.gray },
+  errorText: { fontSize: 14, color: '#e53e3e', textAlign: 'center', marginBottom: theme.spacing.md },
+  retryButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+  },
+  retryText: { color: theme.colors.white, fontWeight: '600' },
+});
+
+######## FILE: /sandbox/repo/src/screens/NameInputScreen.tsx ########
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { theme } from '../constants/theme';
+
+type UserSuggestion = {
+  id: string;
+  name: string;
+};
+
+const normalizeSearchInput = (value: string) =>
+  value
+    .trim()
+    .replace(/[^A-Za-z0-9äöüÄÖÜß\s-]/g, '')
+    .replace(/\s+/g, ' ');
+
+export default function NameInputScreen({ navigation }: any) {
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserSuggestion | null>(null);
+
+  useEffect(() => {
+    const searchTerm = normalizeSearchInput(name);
+
+    if (searchTerm.length < 3 || !isSupabaseConfigured) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, name')
+        .eq('active', true)
+        .ilike('name', `${searchTerm}%`)
+        .order('name', { ascending: true })
+        .limit(5);
+
+      if (error) {
+        setSuggestions([]);
+        setSelectedUser(null);
+        setErrorMessage('Namenssuche momentan nicht verfügbar. Bitte versuche es erneut.');
+        setIsSearching(false);
+        return;
+      }
+
+      const matches = data ?? [];
+
+      // Automatische Namensauswahl, sobald nach 3+ Buchstaben genau 1 Treffer existiert
+      if (matches.length === 1) {
+        const user = matches[0];
+        setSelectedUser(user);
+        setSuggestions(matches);
+
+        if (searchTerm.toLowerCase() !== user.name.trim().toLowerCase()) {
+          setName(user.name);
+        }
+      } else {
+        setSelectedUser(null);
+        setSuggestions(matches);
+      }
+
+      setIsSearching(false);
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [name]);
+
+  const selectUser = (user: UserSuggestion) => {
+    setName(user.name);
+    setSelectedUser(user);
+    setSuggestions([]);
+    setErrorMessage('');
+  };
+
+  const handleSubmit = async () => {
+    const trimmedName = name.trim();
+    const normalizedName = normalizeSearchInput(name);
+    
+    if (!trimmedName) {
+      setErrorMessage('Bitte gib deinen Namen ein');
+      return;
+    }
+
+    // Prüfe ob Supabase konfiguriert ist
+    if (!isSupabaseConfigured) {
+      setErrorMessage('⚠️ Supabase nicht konfiguriert. Bitte .env Datei ausfüllen und App neu starten.');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      // Nutze vorausgewählten Namen falls vorhanden
+      let resolvedUser: UserSuggestion | null = selectedUser;
+
+      if (!resolvedUser) {
+        // 1) Prefix-Suche und dann exakten Match bevorzugen
+        const { data: prefixData, error: prefixError } = await supabase
+          .from('employees')
+          .select('id, name')
+          .eq('active', true)
+          .ilike('name', `${normalizedName}%`)
+          .order('name', { ascending: true })
+          .limit(20);
+
+        if (prefixError) {
+          console.error('Name lookup failed:', prefixError);
+          setErrorMessage('Namenssuche fehlgeschlagen. Bitte später erneut versuchen.');
+          setIsLoading(false);
+          return;
+        }
+
+        const matches = prefixData ?? [];
+
+        if (matches.length === 1) {
+          resolvedUser = matches[0];
+          setName(matches[0].name);
+          setSelectedUser(matches[0]);
+        } else if (matches.length > 1) {
+          const exactMatch = matches.find(
+            (user) => user.name.trim().toLowerCase() === normalizedName.toLowerCase()
+          );
+
+          if (exactMatch) {
+            resolvedUser = exactMatch;
+            setSelectedUser(exactMatch);
+          } else {
+            setSuggestions(matches.slice(0, 5));
+            setErrorMessage('Mehrere Namen gefunden – bitte aus der Liste auswählen.');
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      if (!resolvedUser) {
+        setErrorMessage('Name nicht bekannt. Bitte wende dich an den Admin.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Name gefunden - speichere in AsyncStorage
+      await AsyncStorage.setItem('userName', resolvedUser.name);
+      await AsyncStorage.setItem('userId', resolvedUser.id);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+    } catch (error) {
+      console.error('Error validating name:', error);
+      setErrorMessage('Verbindungsfehler. Bitte versuche es erneut.');
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.content}>
+        {/* Header with Paradieschen Logo */}
+        <View style={styles.header}>
+          <Image 
+            source={require('../../assets/paradieschen-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Willkommen bei BioTaste! 🌿</Text>
+          <Text style={styles.subtitle}>Wer bist du heute?</Text>
+        </View>
+
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[
+              styles.input,
+              errorMessage && styles.inputError,
+            ]}
+            placeholder="Dein Name, z. B. Max Mustermann"
+            placeholderTextColor={theme.colors.gray}
+            value={name}
+            onChangeText={(text) => {
+              setName(text);
+              setSelectedUser(null);
+              setErrorMessage('');
+            }}
+            autoFocus={true}
+            autoCapitalize="words"
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+            editable={!isLoading}
+          />
+
+          {isSearching ? (
+            <Text style={styles.searchHint}>Suche Namen…</Text>
+          ) : null}
+
+          {suggestions.length > 0 ? (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((user) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={styles.suggestionItem}
+                  onPress={() => selectUser(user)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.suggestionText}>{user.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+
+          {selectedUser ? (
+            <Text style={styles.searchHint}>✅ Name automatisch ausgewählt</Text>
+          ) : null}
+
+          {errorMessage ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Button */}
+        <TouchableOpacity 
+          style={[
+            styles.button,
+            isLoading && styles.buttonDisabled,
+          ]}
+          onPress={handleSubmit}
+          activeOpacity={0.8}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={theme.colors.white} />
+          ) : (
+            <Text style={styles.buttonText}>Los geht's!</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Hint */}
+        <Text style={styles.hint}>
+          Dein Name wird nur lokal und für Punktezwecke verwendet. Du kannst ihn jederzeit löschen (Logout).
+        </Text>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.xl,
+    justifyContent: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl * 2,
+  },
+  logo: {
+    width: 200,
+    height: 100,
+    marginBottom: theme.spacing.lg,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    marginBottom: theme.spacing.xl,
+  },
+  input: {
+    backgroundColor: theme.colors.grayLight,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    fontSize: 18,
+    color: theme.colors.text,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  inputError: {
+    borderColor: '#e53e3e',
+  },
+  searchHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  suggestionsContainer: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.grayLight,
+    borderRadius: theme.borderRadius.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  suggestionItem: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#edf2f7',
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: theme.colors.text,
+  },
+  errorBox: {
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
+    borderColor: '#e53e3e',
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#e53e3e',
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonDisabled: {
+    backgroundColor: theme.colors.gray,
+    opacity: 0.6,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  hint: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: theme.spacing.md,
+  },
+});
+
+######## FILE: /sandbox/repo/src/screens/RatingScreen.tsx ########
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { theme } from '../constants/theme';
+import StarRating from '../components/StarRating';
+import EmojiPicker from '../components/EmojiPicker';
+import { Product, Charge } from '../types';
+
+const CATEGORY_EMOJIS: { [key: string]: string } = {
+  'Obst': '🍎',
+  'Gemüse': '🥦',
+  'Kräuter': '🌿',
+};
+
+const EMOJI_TAGS = {
+  geschmack: [
+    { id: 'suess', label: '🍬 Süß' },
+    { id: 'sauer', label: '🍋 Sauer' },
+    { id: 'salzig', label: '🧂 Salzig' },
+    { id: 'waessrig', label: '💧 Wässrig' },
+    { id: 'aromatisch', label: '🌿 Aromatisch' },
+  ],
+  zustand: [
+    { id: 'frisch', label: '✨ Frisch' },
+    { id: 'ueberreif', label: '⚠️ Überreif' },
+    { id: 'noch_nicht_reif', label: '🌱 Noch nicht reif' },
+    { id: 'matschig', label: '🤢 Matschig' },
+  ],
+  besonders: [
+    { id: 'top_qualitaet', label: '🏆 Top Qualität' },
+    { id: 'enttaeuschend', label: '👎 Enttäuschend' },
+    { id: 'schaedling', label: '🐛 Schädling' },
+  ],
+};
+
+export default function RatingScreen({ route, navigation }: any) {
+  const { charge, product } = route.params as { charge?: Charge; product: Product };
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+
+  const [overallStars, setOverallStars] = useState(0);
+  const [tasteEmoji, setTasteEmoji] = useState('');
+  const [opticEmoji, setOpticEmoji] = useState('');
+  const [textureEmoji, setTextureEmoji] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [comment, setComment] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('userId').then(id => setUserId(id));
+    AsyncStorage.getItem('userName').then(name => setUserName(name));
+  }, []);
+
+  const toggleTag = (tagId: string) => {
+    if (selectedTags.includes(tagId)) {
+      setSelectedTags(selectedTags.filter(t => t !== tagId));
+    } else {
+      if (selectedTags.length < 5) {
+        setSelectedTags([...selectedTags, tagId]);
+      }
+    }
+  };
+
+
+  const handleSubmit = async () => {
+    if (overallStars === 0) {
+      Alert.alert('Fehler', 'Bitte gib eine Sternebewertung ab!');
+      return;
+    }
+
+    if (!userId) {
+      Alert.alert('Fehler', 'User ID nicht gefunden');
+      return;
+    }
+
+    // Prüfe ob Supabase konfiguriert ist
+    if (!isSupabaseConfigured) {
+      Alert.alert(
+        '⚠️ Supabase nicht konfiguriert',
+        'Die Bewertung kann nicht gespeichert werden. Bitte .env Datei ausfüllen und App neu starten.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      // 1. Speichere Bewertung in Supabase
+      const { error: ratingError } = await supabase
+        .from('ratings')
+        .insert({
+          user_id: userId,
+          charge_id: charge?.id || null,
+          product_id: product.id,
+          overall_stars: overallStars,
+          taste_emoji: tasteEmoji,
+          optic_emoji: opticEmoji,
+          texture_emoji: textureEmoji,
+          emoji_tags: selectedTags,
+          comment: comment.trim() || null,
+        });
+
+      if (ratingError) {
+        console.error('Supabase error:', ratingError);
+        Alert.alert('Fehler', 'Bewertung konnte nicht gespeichert werden.');
+        return;
+      }
+      Alert.alert(
+        'Bewertung gespeichert!',
+        'Du nimmst an der wöchentlichen Verlosung teil! 🎉',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Fehler', 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backArrow}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{product.name}</Text>
+        <View style={styles.backButton} />
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.content}>
+        {/* Product Info */}
+        <View style={styles.productSection}>
+          <View style={styles.productEmojiCircle}>
+            <Text style={styles.productEmoji}>
+              {CATEGORY_EMOJIS[product.category] || '🌱'}
+            </Text>
+          </View>
+          <Text style={styles.productName}>{product.name}</Text>
+          <Text style={styles.productSupplier}>{product.supplier || 'Bio-Lieferant'}</Text>
+          <Text style={styles.productCharge}>
+            {charge ? `${charge.charge_code} • ${new Date(charge.delivery_date).toLocaleDateString('de-DE')}` : product.supplier || 'Aktuell verfügbar'}
+          </Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Overall Rating */}
+        <View style={styles.ratingSection}>
+          <Text style={styles.sectionLabel}>Gesamteindruck</Text>
+          <StarRating value={overallStars} onChange={setOverallStars} />
+        </View>
+
+        {/* Emoji Pickers */}
+        <View style={styles.emojiSection}>
+          <EmojiPicker
+            label="Geschmack"
+            value={tasteEmoji}
+            onChange={setTasteEmoji}
+          />
+          <EmojiPicker
+            label="Optik"
+            value={opticEmoji}
+            onChange={setOpticEmoji}
+          />
+          <EmojiPicker
+            label="Textur"
+            value={textureEmoji}
+            onChange={setTextureEmoji}
+          />
+        </View>
+
+        {/* Emoji Tags */}
+        <View style={styles.tagsSection}>
+          <Text style={styles.tagsSectionTitle}>Geschmack</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow}>
+            {EMOJI_TAGS.geschmack.map(tag => (
+              <TouchableOpacity
+                key={tag.id}
+                style={[
+                  styles.tagChip,
+                  selectedTags.includes(tag.id) && styles.tagChipSelected,
+                ]}
+                onPress={() => toggleTag(tag.id)}
+              >
+                <Text style={[
+                  styles.tagChipText,
+                  selectedTags.includes(tag.id) && styles.tagChipTextSelected,
+                ]}>
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.tagsSectionTitle}>Zustand</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow}>
+            {EMOJI_TAGS.zustand.map(tag => (
+              <TouchableOpacity
+                key={tag.id}
+                style={[
+                  styles.tagChip,
+                  selectedTags.includes(tag.id) && styles.tagChipSelected,
+                ]}
+                onPress={() => toggleTag(tag.id)}
+              >
+                <Text style={[
+                  styles.tagChipText,
+                  selectedTags.includes(tag.id) && styles.tagChipTextSelected,
+                ]}>
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.tagsSectionTitle}>Besonders</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsRow}>
+            {EMOJI_TAGS.besonders.map(tag => (
+              <TouchableOpacity
+                key={tag.id}
+                style={[
+                  styles.tagChip,
+                  selectedTags.includes(tag.id) && styles.tagChipSelected,
+                ]}
+                onPress={() => toggleTag(tag.id)}
+              >
+                <Text style={[
+                  styles.tagChipText,
+                  selectedTags.includes(tag.id) && styles.tagChipTextSelected,
+                ]}>
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Comment */}
+        <View style={styles.commentSection}>
+          <Text style={styles.sectionLabel}>Kurzer Kommentar (optional)</Text>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Kurzer Kommentar (optional)..."
+            placeholderTextColor={theme.colors.gray}
+            multiline
+            maxLength={150}
+            value={comment}
+            onChangeText={setComment}
+          />
+          <Text style={styles.characterCount}>{comment.length}/150</Text>
+        </View>
+
+        {/* Verlosung Hinweis */}
+        <View style={styles.pointsPreview}>
+          <Text style={styles.pointsPreviewText}>
+            Jede Bewertung = Teilnahme an der Wochenverlosung! 🎉
+          </Text>
+        </View>
+
+        {/* Spacer for sticky button */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Submit Button */}
+      <View style={styles.submitContainer}>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            overallStars === 0 && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+        >
+          <Text style={styles.submitButtonText}>Abschicken</Text>
+        </TouchableOpacity>
+      </View>
+
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    backgroundColor: theme.colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.grayLight,
+  },
+  backButton: {
+    width: 40,
+  },
+  backArrow: {
+    fontSize: 28,
+    color: theme.colors.primary,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  content: {
+    flex: 1,
+  },
+  productSection: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
+  },
+  productEmojiCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  productEmoji: {
+    fontSize: 60,
+  },
+  productName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  productSupplier: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    marginBottom: theme.spacing.xs,
+  },
+  productCharge: {
+    fontSize: 12,
+    color: theme.colors.gray,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: theme.colors.grayLight,
+    marginHorizontal: theme.spacing.lg,
+    marginVertical: theme.spacing.md,
+  },
+  ratingSection: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+  },
+  emojiSection: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  tagsSection: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  tagsSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2f855a',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  tagsRow: {
+    marginBottom: 8,
+  },
+  tagChip: {
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: theme.colors.white,
+    borderWidth: 2,
+    borderColor: '#48bb78',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  tagChipSelected: {
+    backgroundColor: '#48bb78',
+    borderColor: '#48bb78',
+  },
+  tagChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#48bb78',
+  },
+  tagChipTextSelected: {
+    color: theme.colors.white,
+  },
+  commentSection: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  commentInput: {
+    backgroundColor: theme.colors.grayLight,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: theme.spacing.md,
+    fontSize: 14,
+    color: theme.colors.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  characterCount: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  pointsPreview: {
+    marginHorizontal: theme.spacing.lg,
+    marginVertical: theme.spacing.md,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.primary + '10',
+    borderRadius: theme.borderRadius.sm,
+    alignItems: 'center',
+  },
+  pointsPreviewText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  submitContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.grayLight,
+  },
+  submitButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: theme.colors.gray,
+  },
+  submitButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+});
+
+######## FILE: /sandbox/repo/src/screens/VerlosungsScreen.tsx ########
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function VerlosungsScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🎉 Wöchentliche Verlosung</Text>
+      <Text style={styles.subtitle}>Bewerte mindestens 1 Produkt um teilzunehmen!</Text>
+      <Text style={styles.info}>Der Gewinner wird jeden Montag gezogen.</Text>
+      <Text style={styles.prize}>Aktueller Preis: wird von Kurt festgelegt</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#F5F5F0' },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#2D7A3A', marginBottom: 16 },
+  subtitle: { fontSize: 16, color: '#333', textAlign: 'center', marginBottom: 12 },
+  info: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 },
+  prize: { fontSize: 16, fontWeight: '600', color: '#2D7A3A', textAlign: 'center' },
+});
+######## FILE: /sandbox/repo/src/services/productService.ts ########
+import { supabase } from '../lib/supabase';
+import { Product } from '../types';
+
+/**
+ * Fetch all available products from Supabase
+ */
+export const getProducts = async (): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('is_available', true)
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Fehler beim Laden der Produkte:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+/**
+ * Fetch a single product by ID
+ */
+export const getProductById = async (id: string): Promise<Product | null> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Fehler beim Laden des Produkts:', error);
+    return null;
+  }
+
+  return data;
+};
+
+/**
+ * Fetch products by category
+ */
+export const getProductsByCategory = async (category: string): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('category', category)
+    .eq('is_available', true)
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Fehler beim Laden der Produkte:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+######## FILE: /sandbox/repo/src/types/index.ts ########
+export interface User {
+  id: string;
+  name: string;
+  pin?: string;
+  role: 'employee' | 'admin';
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  supplier?: string;
+  image_url?: string;
+  active?: boolean;
+  created_at?: string;
+}
+
+export interface Charge {
+  id: string;
+  product_id: string;
+  charge_code: string;
+  delivery_date: string;
+  supplier_batch?: string;
+}
+
+export interface Rating {
+  id: string;
+  user_id: string;
+  charge_id: string;
+  overall_stars: number;
+  taste_emoji: string;
+  optic_emoji: string;
+  texture_emoji: string;
+  comment?: string;
+  photo_url?: string;
+  loses_earned: number;
+}
+
+// ============================================
+// LOTTERIE/LOS-SYSTEM TYPEN
+// ============================================
+
+export interface WeeklyLoses {
+  id: string;
+  user_id: string;
+  week_start: string; // ISO date string (Monday)
+  total_loses: number;
+  bonus_loses: number;
+  streak_loses: number;
+  daily_count: number;
+  last_rating_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Streak {
+  id: string;
+  user_id: string;
+  current_streak: number;
+  longest_streak: number;
+  last_rating_date: string | null;
+  streak_protection_used: boolean;
+  protection_reset_month: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Winner {
+  id: string;
+  user_id: string;
+  week_start: string;
+  winner_type: 'random_1' | 'random_2' | 'random_3' | 'quality';
+  prize: string;
+  is_anonymous: boolean;
+  reward_claimed: boolean;
+  reward_qr_code: string | null;
+  created_at: string;
+}
+
+export interface UserSettings {
+  id: string;
+  user_id: string;
+  is_anonymous: boolean;
+  display_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Prize {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  winner_type: 'random_1' | 'random_2' | 'random_3' | 'quality';
+}
+
+// Service Response Types
+export interface AwardLosesResult {
+  success: boolean;
+  losesAwarded: number;
+  message: string;
+  newTotal?: number;
+}
+
+export interface StreakUpdateResult {
+  success: boolean;
+  currentStreak: number;
+  bonusLoses: number;
+  message: string;
+}
+
+============================================
+END OF CODE DUMP
+============================================

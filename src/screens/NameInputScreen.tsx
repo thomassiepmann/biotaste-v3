@@ -176,7 +176,7 @@ export default function NameInputScreen({ navigation }: any) {
             resizeMode="contain"
           />
           <Text style={styles.title}>Willkommen bei BioTaste! 🌿</Text>
-          <Text style={styles.subtitle}>Wer bist du heute?</Text>
+          <Text style={styles.subtitle}>Mitarbeiter-Login</Text>
         </View>
 
         {/* Input */}
@@ -186,7 +186,7 @@ export default function NameInputScreen({ navigation }: any) {
               styles.input,
               errorMessage && styles.inputError,
             ]}
-            placeholder="Dein Name, z. B. Max Mustermann"
+            placeholder="Name eingeben (min. 3 Buchstaben)"
             placeholderTextColor={theme.colors.gray}
             value={name}
             onChangeText={(text) => {
@@ -250,7 +250,7 @@ export default function NameInputScreen({ navigation }: any) {
 
         {/* Hint */}
         <Text style={styles.hint}>
-          Dein Name wird nur lokal und für Punktezwecke verwendet. Du kannst ihn jederzeit löschen (Logout).
+          Gib die ersten 3 Buchstaben deines Namens ein.
         </Text>
       </View>
     </KeyboardAvoidingView>

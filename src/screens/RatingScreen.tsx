@@ -61,23 +61,6 @@ export default function RatingScreen({ route, navigation }: any) {
     }
   };
 
-  const calculatePoints = () => {
-    let points = 20; // Base points
-    // Smileys ausgefüllt
-    if (tasteEmoji && opticEmoji && textureEmoji) points += 5;
-    // Tags gewählt
-    if (selectedTags.length > 0) points += 5;
-    // Kommentar geschrieben
-    if (comment.trim().length > 0) points += 5;
-    return points;
-  };
-
-  const calculateLoses = () => {
-    let loses = 1; // Basis-Los
-    if (comment.trim().length > 0) loses += 1; // +1 für Kommentar
-    // +1 für Foto würde hier hinzukommen (noch nicht implementiert)
-    return loses;
-  };
 
   const handleSubmit = async () => {
     if (overallStars === 0) {
@@ -114,7 +97,6 @@ export default function RatingScreen({ route, navigation }: any) {
           texture_emoji: textureEmoji,
           emoji_tags: selectedTags,
           comment: comment.trim() || null,
-          loses_earned: calculateLoses(),
         });
 
       if (ratingError) {
@@ -273,10 +255,10 @@ export default function RatingScreen({ route, navigation }: any) {
           <Text style={styles.characterCount}>{comment.length}/150</Text>
         </View>
 
-        {/* Loses Preview */}
+        {/* Verlosung Hinweis */}
         <View style={styles.pointsPreview}>
           <Text style={styles.pointsPreviewText}>
-            Du bekommst +{calculateLoses()} {calculateLoses() === 1 ? 'Los' : 'Lose'} 🎟️
+            Jede Bewertung = Teilnahme an der Wochenverlosung! 🎉
           </Text>
         </View>
 

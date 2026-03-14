@@ -173,31 +173,6 @@ export default function RatingScreen({ route, navigation }: any) {
           <StarRating value={overallStars} onChange={setOverallStars} />
         </View>
 
-        {/* Problem Flags (optional, after stars) */}
-        <View style={styles.problemFlagsSection}>
-          <Text style={styles.problemFlagsTitle}>⚠️ Problem aufgefallen? (optional)</Text>
-          <View style={styles.problemFlagsGrid}>
-            {PROBLEM_FLAGS.map(flag => (
-              <TouchableOpacity
-                key={flag.id}
-                style={[
-                  styles.problemFlagButton,
-                  selectedProblemFlags.includes(flag.id) && styles.problemFlagButtonSelected,
-                ]}
-                onPress={() => toggleProblemFlag(flag.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.problemFlagText,
-                  selectedProblemFlags.includes(flag.id) && styles.problemFlagTextSelected,
-                ]}>
-                  {flag.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Emoji Pickers */}
         <View style={styles.emojiSection}>
           <EmojiPicker
@@ -281,6 +256,31 @@ export default function RatingScreen({ route, navigation }: any) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+
+        {/* Problem Flags (optional, after emoji tags) */}
+        <View style={styles.problemFlagsSection}>
+          <Text style={styles.problemFlagsTitle}>⚠️ Problem aufgefallen? (optional)</Text>
+          <View style={styles.problemFlagsGrid}>
+            {PROBLEM_FLAGS.map(flag => (
+              <TouchableOpacity
+                key={flag.id}
+                style={[
+                  styles.problemFlagButton,
+                  selectedProblemFlags.includes(flag.id) && styles.problemFlagButtonSelected,
+                ]}
+                onPress={() => toggleProblemFlag(flag.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.problemFlagText,
+                  selectedProblemFlags.includes(flag.id) && styles.problemFlagTextSelected,
+                ]}>
+                  {flag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Comment */}

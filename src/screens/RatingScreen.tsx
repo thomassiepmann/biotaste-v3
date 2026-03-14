@@ -34,6 +34,14 @@ const EMOJI_TAGS = {
   ],
 };
 
+const PROBLEM_FLAGS = [
+  { id: 'schimmel', label: '🍄 Schimmel/Fäulnis' },
+  { id: 'schaedlinge', label: '🐛 Schädlinge/Fraß' },
+  { id: 'druckstellen', label: '👊 Druckstellen' },
+  { id: 'ueberreif', label: '🟡 Überreif' },
+  { id: 'unreif', label: '🟢 Unreif' },
+];
+
 export default function RatingScreen({ route, navigation }: any) {
   const { charge, product } = route.params as { charge?: Charge; product: Product };
   const [userId, setUserId] = useState<string | null>(null);
@@ -44,6 +52,7 @@ export default function RatingScreen({ route, navigation }: any) {
   const [opticEmoji, setOpticEmoji] = useState('');
   const [textureEmoji, setTextureEmoji] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedProblemFlags, setSelectedProblemFlags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
 
   useEffect(() => {
@@ -58,6 +67,14 @@ export default function RatingScreen({ route, navigation }: any) {
       if (selectedTags.length < 5) {
         setSelectedTags([...selectedTags, tagId]);
       }
+    }
+  };
+
+  const toggleProblemFlag = (flagId: string) => {
+    if (selectedProblemFlags.includes(flagId)) {
+      setSelectedProblemFlags(selectedProblemFlags.filter(f => f !== flagId));
+    } else {
+      setSelectedProblemFlags([...selectedProblemFlags, flagId]);
     }
   };
 
@@ -96,6 +113,7 @@ export default function RatingScreen({ route, navigation }: any) {
           optic_emoji: opticEmoji,
           texture_emoji: textureEmoji,
           emoji_tags: selectedTags,
+          problem_flags: selectedProblemFlags.length > 0 ? selectedProblemFlags : null,
           comment: comment.trim() || null,
         });
 
@@ -153,6 +171,31 @@ export default function RatingScreen({ route, navigation }: any) {
         <View style={styles.ratingSection}>
           <Text style={styles.sectionLabel}>Gesamteindruck</Text>
           <StarRating value={overallStars} onChange={setOverallStars} />
+        </View>
+
+        {/* Problem Flags (optional, after stars) */}
+        <View style={styles.problemFlagsSection}>
+          <Text style={styles.problemFlagsTitle}>⚠️ Problem aufgefallen? (optional)</Text>
+          <View style={styles.problemFlagsGrid}>
+            {PROBLEM_FLAGS.map(flag => (
+              <TouchableOpacity
+                key={flag.id}
+                style={[
+                  styles.problemFlagButton,
+                  selectedProblemFlags.includes(flag.id) && styles.problemFlagButtonSelected,
+                ]}
+                onPress={() => toggleProblemFlag(flag.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.problemFlagText,
+                  selectedProblemFlags.includes(flag.id) && styles.problemFlagTextSelected,
+                ]}>
+                  {flag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Emoji Pickers */}
@@ -361,6 +404,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: theme.spacing.md,
+  },
+  problemFlagsSection: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: '#FFF5F5',
+  },
+  problemFlagsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#C53030',
+    marginBottom: theme.spacing.sm,
+  },
+  problemFlagsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  problemFlagButton: {
+    minWidth: 120,
+    height: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 24,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#FC8181',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  problemFlagButtonSelected: {
+    backgroundColor: '#C53030',
+    borderColor: '#C53030',
+  },
+  problemFlagText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#C53030',
+    textAlign: 'center',
+  },
+  problemFlagTextSelected: {
+    color: '#FFF',
   },
   emojiSection: {
     paddingHorizontal: theme.spacing.lg,
